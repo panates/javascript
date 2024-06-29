@@ -1,0 +1,58 @@
+{
+  "name": "@panates/eslint-config-ts",
+  "version": "1.0.0",
+  "description": "TypeScript rules for Panates ESLint config, following our styleguide",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./package.json": "./package.json"
+  },
+  "dependencies": {
+    "@panates/eslint-config": "^1.0.0"
+  },
+  "peerDependencies": {
+    "@typescript-eslint/eslint-plugin": "^7.12.0",
+    "@typescript-eslint/parser": "^7.12.0"
+  },
+  "scripts": {
+    "format": "prettier . --write --log-level=warn",
+    "lint": "eslint ."
+  },
+  "engines": {
+    "node": "^10.12.0 || ^12.22.0 || ^14.17.0 || >=16.0.0"
+  },
+  "author": "Panates",
+  "license": "MIT",
+  "homepage": "https://github.com/panates/javascript.git",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/panates/javascript.git",
+    "directory": "./packages/eslint-config-ts"
+  },
+  "bugs": {
+    "url": "https://github.com/panates/javascript/issues"
+  },
+  "keywords": [
+    "eslint",
+    "eslintconfig",
+    "config",
+    "panates",
+    "javascript",
+    "typescript",
+    "styleguide",
+    "es2015",
+    "es2016",
+    "es2017",
+    "es2018",
+    "es2019",
+    "es2020",
+    "es2021",
+    "es2022"
+  ],
+  "contributors": [
+    {
+      "name": "Eray Hanoğlu",
+      "url": "https://github.com/erayhanoglu"
+    }
+  ]
+}

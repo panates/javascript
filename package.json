@@ -1,0 +1,17 @@
+{
+  "name": "panates-style",
+  "version": "0.0.1",
+  "description": "A mostly reasonable approach to JavaScript and TypeScript",
+  "workspaces": [
+    "packages/**"
+  ],
+  "devDependencies": {
+    "husky": "^9.0.11",
+    "rman": "^0.28.1"
+  },
+  "author": "Panates",
+  "license": "MIT",
+  "scripts": {
+    "prepare": "husky"
+  }
+}

@@ -1,0 +1,7 @@
+command:
+  version:
+    unified: true
+  run:
+    parallel: lint,format
+
+logLevel: info

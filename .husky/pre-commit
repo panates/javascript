@@ -1,0 +1,2 @@
+rman run format
+rman run lint

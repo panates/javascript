@@ -1,0 +1,27 @@
+{
+  "singleQuote": true,
+  "arrowParens": "always",
+  "trailingComma": "all",
+  "bracketSpacing": true,
+  "quoteProps": "as-needed",
+  "overrides": [
+    {
+      "files": ".editorconfig",
+      "options": {
+        "parser": "yaml"
+      }
+    },
+    {
+      "files": "LICENSE",
+      "options": {
+        "parser": "markdown"
+      }
+    },
+    {
+      "files": ".rmanrc",
+      "options": {
+        "parser": "markdown"
+      }
+    }
+  ]
+}
