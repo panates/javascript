@@ -1,10 +1,12 @@
 module.exports = {
   rules: {
-    // Ensures an imported module can be resolved to a module on the local filesystem, as defined by standard Node require.resolve behavior.
-    // https://github.com/antfu/eslint-plugin-import-x/blob/master/docs/rules/no-unresolved.md
-    // TypeScript has its own resolver.
+    // Disable base rules
     'import-x/no-unresolved': 'off',
+    'no-shadow': 'off',
+    'import-x/export': 'off',
+    'no-empty-function': 'off',
 
+    // Rules for TypeScripts
     '@typescript-eslint/array-type': 'error',
     '@typescript-eslint/explicit-member-accessibility': [
       'off',

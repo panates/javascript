@@ -39,12 +39,8 @@ module.exports = {
 
     // disallow arrow functions where they could be confused with comparisons
     // https://eslint.org/docs/rules/no-confusing-arrow
-    'no-confusing-arrow': [
-      'error',
-      {
-        allowParens: true,
-      },
-    ],
+    // Overlaps with prettier rules
+    'no-confusing-arrow': 'off',
 
     // disallow modifying variables that are declared using const
     'no-const-assign': 'error',
@@ -89,7 +85,7 @@ module.exports = {
 
     // disallow unnecessary constructor
     // https://eslint.org/docs/rules/no-useless-constructor
-    'no-useless-constructor': 'error',
+    'no-useless-constructor': 'off',
 
     // disallow renaming import, export, and destructured assignments to the same name
     // https://eslint.org/docs/rules/no-useless-rename
@@ -180,5 +176,9 @@ module.exports = {
     // enforce spacing around the * in yield* expressions
     // https://eslint.org/docs/rules/yield-star-spacing
     'yield-star-spacing': ['error', 'after'],
+
+    // Disallow use of optional chaining in contexts where the undefined value is not allowed
+    // https://eslint.org/docs/latest/rules/no-unsafe-optional-chaining
+    'no-unsafe-optional-chaining': 'off',
   },
 };

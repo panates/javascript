@@ -18,12 +18,7 @@ module.exports = {
 
     // enforce that class methods use "this"
     // https://eslint.org/docs/rules/class-methods-use-this
-    'class-methods-use-this': [
-      'error',
-      {
-        exceptMethods: [],
-      },
-    ],
+    'class-methods-use-this': 'off',
 
     // require return statements to either always or never specify values
     // https://eslint.org/docs/rules/consistent-return
@@ -159,7 +154,7 @@ module.exports = {
 
     // disallow this keywords outside of classes or class-like objects
     // https://eslint.org/docs/rules/no-invalid-this
-    'no-invalid-this': 'error',
+    'no-invalid-this': 'off',
 
     // disallow usage of __iterator__ property
     // https://eslint.org/docs/rules/no-iterator
@@ -175,7 +170,7 @@ module.exports = {
 
     // disallow creation of functions within loops
     // https://eslint.org/docs/rules/no-loop-func
-    'no-loop-func': 'error',
+    'no-loop-func': 'off',
 
     // disallow magic numbers
     // https://eslint.org/docs/rules/no-magic-numbers
@@ -404,7 +399,7 @@ module.exports = {
 
     // require immediate function invocation to be wrapped in parentheses
     // https://eslint.org/docs/rules/wrap-iife.html
-    'wrap-iife': ['error', 'outside', { functionPrototypeMethods: false }],
+    'wrap-iife': 'off',
 
     // require or disallow Yoda conditions
     // https://eslint.org/docs/rules/yoda
