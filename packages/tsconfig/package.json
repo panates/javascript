@@ -11,7 +11,8 @@
     "./package.json": "./package.json"
   },
   "scripts": {
-    "format": "prettier . --write --log-level=warn"
+    "format": "prettier . --write --log-level=warn",
+    "prepublish": "npm run format"
   },
   "engines": {
     "node": "^10.12.0 || ^12.22.0 || ^14.17.0 || >=16.0.0"

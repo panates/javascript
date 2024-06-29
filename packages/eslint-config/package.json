@@ -25,7 +25,8 @@
   },
   "scripts": {
     "format": "prettier . --write --log-level=warn",
-    "lint": "eslint . --max-warnings=0 --fix"
+    "lint": "eslint . --max-warnings=0 --fix",
+    "prepublish": "npm run format && npm run lint"
   },
   "engines": {
     "node": "^10.12.0 || ^12.22.0 || ^14.17.0 || >=16.0.0"
