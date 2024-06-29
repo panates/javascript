@@ -1,22 +1,17 @@
 {
-  "name": "@panates/eslint-config-ts",
+  "name": "@panates/tsconfig",
   "version": "1.0.1",
-  "description": "TypeScript rules for Panates ESLint config, following our styleguide",
-  "main": "index.js",
+  "description": "TypeScript config file, following our rules",
+  "main": "./node.json",
   "exports": {
     ".": "./index.js",
+    "./base.json": "./base.json",
+    "./node.json": "./node.json",
+    "./build.json": "./build.json",
     "./package.json": "./package.json"
   },
-  "dependencies": {
-    "@panates/eslint-config": "^1.0.1"
-  },
-  "peerDependencies": {
-    "@typescript-eslint/eslint-plugin": "^7.12.0",
-    "@typescript-eslint/parser": "^7.12.0"
-  },
   "scripts": {
-    "format": "prettier . --write --log-level=warn",
-    "lint": "eslint . --max-warnings=0 --fix"
+    "format": "prettier . --write --log-level=warn"
   },
   "engines": {
     "node": "^10.12.0 || ^12.22.0 || ^14.17.0 || >=16.0.0"
@@ -27,7 +22,7 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/panates/javascript.git",
-    "directory": "./packages/eslint-config-ts"
+    "directory": "./packages/eslint-config"
   },
   "bugs": {
     "url": "https://github.com/panates/javascript/issues"
@@ -38,7 +33,6 @@
     "config",
     "panates",
     "javascript",
-    "typescript",
     "styleguide",
     "es2015",
     "es2016",
