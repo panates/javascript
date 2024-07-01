@@ -2,6 +2,11 @@ module.exports = {
   extends: ['plugin:import-x/recommended'],
   plugins: ['simple-import-sort'],
   rules: {
+    // Verifies that all named imports are part of the set of named exports in the referenced module.
+    // https://github.com/antfu/eslint-plugin-import-x/blob/master/docs/rules/named.md
+    // !! Does not work as expected for TypeScript generated packages
+    'import-x/named': 'off',
+
     // Reports funny business with exports, like repeated exports of names or defaults.
     // https://github.com/antfu/eslint-plugin-import-x/blob/master/docs/rules/export.md
     'import-x/export': 'error',
