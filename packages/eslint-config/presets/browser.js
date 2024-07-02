@@ -1,18 +1,12 @@
 module.exports = {
+  env: {
+    browser: true,
+  },
+  extends: ['./base', '../rules/browser'].map(require.resolve),
+  rules: {},
   overrides: [
     {
-      files: ['**/*.{js,cjs}'],
-      env: {
-        node: true,
-      },
-      extends: ['./base', '../rules/browser'].map(require.resolve),
-      rules: {},
-    },
-    {
       files: ['**/*.mjs'],
-      env: {
-        node: true,
-      },
       parser: '@babel/eslint-parser',
       parserOptions: {
         requireConfigFile: false,
@@ -21,7 +15,6 @@ module.exports = {
           configFile: false,
         },
       },
-      extends: ['./base', '../rules/browser'].map(require.resolve),
     },
   ],
 };
