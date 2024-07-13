@@ -55,7 +55,7 @@ module.exports = {
     'import-x/no-useless-path-segments': 'error',
 
     // https://github.com/antfu/eslint-plugin-import-x/blob/master/docs/rules/extensions.md
-    'import-x/extensions': ['error', 'ignorePackages'],
+    'import-x/extensions': ['error', 'never', { ignorePackages: true, pattern: { js: 'always' } }],
 
     // This rule reports any imports that come after non-import statements.
     // https://github.com/antfu/eslint-plugin-import-x/blob/master/docs/rules/first.md
