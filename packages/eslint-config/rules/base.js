@@ -37,7 +37,7 @@ module.exports = {
     'default-case-last': 'error',
 
     // https://eslint.org/docs/rules/default-param-last
-    'default-param-last': 'error',
+    'default-param-last': 'off',
 
     // encourages use of dot notation whenever possible
     // https://eslint.org/docs/rules/dot-notation
