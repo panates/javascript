@@ -11,8 +11,8 @@
     "@panates/eslint-config": "^1.0.9"
   },
   "peerDependencies": {
-    "@typescript-eslint/eslint-plugin": "^7.16.1",
-    "@typescript-eslint/parser": "^7.16.1"
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "@typescript-eslint/parser": "^7.18.0"
   },
   "scripts": {
     "format": "prettier . --write --log-level=warn",

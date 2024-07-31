@@ -31,5 +31,9 @@ module.exports = {
     // disallow use of synchronous methods (off by default)
     // https://eslint.org/docs/rules/no-syn
     'no-sync': 'off',
+
+    // enforces error handling in callbacks (node environment)
+    // https://eslint.org/docs/latest/rules/handle-callback-err
+    'handle-callback-err': 'off',
   },
 };

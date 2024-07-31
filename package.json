@@ -6,7 +6,7 @@
     "packages/**"
   ],
   "devDependencies": {
-    "husky": "^9.0.11",
+    "husky": "^9.1.4",
     "rman": "^0.28.1"
   },
   "author": "Panates",

@@ -417,6 +417,10 @@ module.exports = {
     // https://eslint.org/docs/latest/rules/new-parens
     'new-parens': 'error',
 
+    // Require parentheses around arrow function arguments
+    // https://eslint.org/docs/latest/rules/arrow-parens
+    'arrow-parens': 'off',
+
     // Disallow bitwise operators
     // https://eslint.org/docs/latest/rules/no-bitwise#rule-details
     'no-bitwise': 'error',
@@ -503,9 +507,6 @@ module.exports = {
     // enforce return after a callback
     // https://eslint.org/docs/latest/rules/callback-return
     'callback-return': 'off',
-
-    // enforces error handling in callbacks (node environment)
-    'handle-callback-err': 'off',
 
     // Require or disallow strict mode directives
     // https://eslint.org/docs/latest/rules/strict
