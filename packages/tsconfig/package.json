@@ -1,6 +1,6 @@
 {
   "name": "@panates/tsconfig",
-  "version": "1.0.10",
+  "version": "1.0.11",
   "description": "TypeScript config file, following our rules",
   "main": "./node.json",
   "exports": {
