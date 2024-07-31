@@ -19,7 +19,7 @@ module.exports = {
 
     // Require parentheses around arrow function arguments
     // https://eslint.org/docs/latest/rules/arrow-parens
-    'arrow-parens': ['error', 'as-needed'],
+    'arrow-parens': 'off',
 
     // require space before/after arrow function's arrow
     // https://eslint.org/docs/rules/arrow-spacing

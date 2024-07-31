@@ -417,10 +417,6 @@ module.exports = {
     // https://eslint.org/docs/latest/rules/new-parens
     'new-parens': 'error',
 
-    // Require parentheses around arrow function arguments
-    // https://eslint.org/docs/latest/rules/arrow-parens
-    'arrow-parens': 'off',
-
     // Disallow bitwise operators
     // https://eslint.org/docs/latest/rules/no-bitwise#rule-details
     'no-bitwise': 'error',
