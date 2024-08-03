@@ -5,9 +5,12 @@
   "workspaces": [
     "packages/**"
   ],
+  "dependencies": {
+    "tslib": "^2.6.3"
+  },
   "devDependencies": {
     "husky": "^9.1.4",
-    "rman": "^0.28.1"
+    "rman": "^0.29.1"
   },
   "author": "Panates",
   "license": "MIT",
