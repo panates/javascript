@@ -3,6 +3,7 @@
   "display": "NodeJS",
   "extends": ["./base.json"],
   "compilerOptions": {
-    "types": ["node"]
+    "types": ["node"],
+    "moduleResolution": "Node"
   }
 }
