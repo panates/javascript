@@ -4,6 +4,7 @@
   "extends": ["./base.json"],
   "compilerOptions": {
     "types": ["node"],
-    "moduleResolution": "Node"
+    "moduleResolution": "NodeNext",
+    "module": "NodeNext"
   }
 }
