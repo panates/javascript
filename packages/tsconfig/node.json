@@ -4,7 +4,7 @@
   "extends": ["./base.json"],
   "compilerOptions": {
     "types": ["node"],
-    "moduleResolution": "NodeNext",
-    "module": "NodeNext"
+    "moduleResolution": "Node",
+    "module": "ES2020"
   }
 }
