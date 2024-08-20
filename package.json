@@ -10,7 +10,7 @@
   },
   "devDependencies": {
     "husky": "^9.1.4",
-    "rman": "^0.29.1"
+    "rman": "^0.31.1"
   },
   "author": "Panates",
   "license": "MIT",

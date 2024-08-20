@@ -57,7 +57,7 @@ module.exports = {
     // https://github.com/antfu/eslint-plugin-import-x/blob/master/docs/rules/extensions.md
     'import-x/extensions': [
       'error',
-      'never',
+      'always',
       {
         ignorePackages: true,
         pattern: {
