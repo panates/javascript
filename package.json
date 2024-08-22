@@ -9,8 +9,8 @@
     "tslib": "^2.6.3"
   },
   "devDependencies": {
-    "husky": "^9.1.4",
-    "rman": "^0.31.1"
+    "husky": "^9.1.5",
+    "rman": "^0.32.0"
   },
   "author": "Panates",
   "license": "MIT",
