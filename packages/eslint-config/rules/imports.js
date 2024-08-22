@@ -48,7 +48,7 @@ module.exports = {
 
     // Ensures an imported module can be resolved to a module on the local filesystem, as defined by standard Node require.resolve behavior.
     // https://github.com/antfu/eslint-plugin-import-x/blob/master/docs/rules/no-unresolved.md
-    'import-x/no-unresolved': ['error', { commonjs: true, amd: true }],
+    'import-x/no-unresolved': 'off',
 
     // Use this rule to prevent unnecessary path segments in import and require statements.
     // https://github.com/antfu/eslint-plugin-import-x/blob/master/docs/rules/no-cycle.md
