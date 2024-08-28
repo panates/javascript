@@ -57,10 +57,11 @@ module.exports = {
     // https://github.com/antfu/eslint-plugin-import-x/blob/master/docs/rules/extensions.md
     'import-x/extensions': [
       'error',
-      'always',
+      'never',
       {
         ignorePackages: true,
         pattern: {
+          '': 'always',
           js: 'always',
           jsx: 'always',
           ts: 'always',
