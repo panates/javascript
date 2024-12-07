@@ -2,8 +2,8 @@ import { Linter } from 'eslint';
 
 declare const index: {
   configs: {
-    tsNode: Linter.Config;
-    tsBrowser: Linter.Config;
+    node: Linter.Config;
+    browser: Linter.Config;
   };
   configPatches: {
     ts: Linter.Config;

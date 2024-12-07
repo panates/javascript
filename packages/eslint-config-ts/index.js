@@ -1,14 +1,13 @@
-import tseslint from 'typescript-eslint';
+import browserTsConfig from './configs/browser-ts.js';
+import nodeTsConfig from './configs/node-ts.js';
+import tsPatchConfig from './configs/ts-patch.js';
 
-export default [
-  {
-    overrides: tseslint.config({
-      files: ['**/*.{ts,tsx,mts,cts}'],
-      extends: [tseslint.configs.recommended],
-      // rules: {
-      //   '@typescript-eslint/array-type': 'error',
-      //   '@typescript-eslint/consistent-type-imports': 'error',
-      // },
-    }),
+export default {
+  configs: {
+    node: nodeTsConfig,
+    browser: browserTsConfig,
   },
-];
+  configPatches: {
+    ts: tsPatchConfig,
+  },
+};
