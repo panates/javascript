@@ -60,6 +60,9 @@ export default [
       '@typescript-eslint/no-unsafe-declaration-merging': 'off',
       '@typescript-eslint/no-redundant-type-constituents': 'off',
       '@typescript-eslint/await-thenable': 'off',
+      '@typescript-eslint/no-empty-object-type': 'off',
+      '@typescript-eslint/no-unsafe-function-type': 'off',
+      '@typescript-eslint/no-wrapper-object-types': 'off',
     },
   },
 ];
