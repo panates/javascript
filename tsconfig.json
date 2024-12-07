@@ -1,0 +1,18 @@
+{
+  "include": [
+    "./packages"
+  ],
+  "exclude": [
+    "node_modules",
+    "build",
+    "coverage",
+    "docs"
+  ],
+  "compilerOptions": {
+    "baseUrl": "./",
+    "paths": {
+      "@panates/eslint-config": ["./packages/eslint-config"],
+      "@panates/eslint-config/*": ["./packages/eslint-config/*"]
+    }
+  }
+}

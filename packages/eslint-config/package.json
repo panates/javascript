@@ -1,26 +1,28 @@
 {
   "name": "@panates/eslint-config",
   "version": "1.0.21",
-  "description": "Base rules for Panates ESLint config, following our styleguide",
-  "main": "./index.js",
+  "description": "Rules for Panates ESLint config, following our styleguide",
+  "type": "module",
+  "module": "./index.js",
   "exports": {
     ".": "./index.js",
-    "./node": "./presets/node.js",
-    "./browser": "./presets/browser.js",
-    "./base": "./rules/base.js",
-    "./es6": "./rules/es6.js",
-    "./imports": "./rules/imports.js",
+    "./base": "./configs/base.js",
+    "./node": "./configs/node.js",
+    "./browser": "./configs/browser.js",
     "./package.json": "./package.json"
   },
+  "dependencies": {
+    "globals": "^15.13.0"
+  },
   "peerDependencies": {
-    "@babel/eslint-parser": "^7.25.1",
-    "eslint": "^8.57.0",
+    "@eslint/js": "^9.16.0",
+    "eslint": ">=9.0.0 <10",
     "eslint-config-prettier": "^9.1.0",
-    "eslint-plugin-import-x": "^0.5.3",
+    "eslint-plugin-import-x": "^4.5.0",
     "eslint-plugin-prettier": "^5.2.1",
     "eslint-plugin-security": "^3.0.1",
     "eslint-plugin-simple-import-sort": "^12.1.1",
-    "prettier": "^3.3.3"
+    "prettier": "^3.4.2"
   },
   "scripts": {
     "format": "prettier . --write --log-level=warn",

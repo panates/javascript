@@ -1,16 +1,19 @@
 {
   "name": "panates-style",
   "version": "0.0.4",
+  "private": "true",
   "description": "A mostly reasonable approach to JavaScript and TypeScript",
   "workspaces": [
     "packages/**"
   ],
   "dependencies": {
-    "tslib": "^2.7.0"
+    "tslib": "^2.8.1"
   },
   "devDependencies": {
-    "husky": "^9.1.5",
-    "rman": "^0.32.0"
+    "@types/node": "^20.11.30",
+    "husky": "^9.1.7",
+    "rman": "^0.32.0",
+    "typescript": "^5.7.2"
   },
   "author": "Panates",
   "license": "MIT",
