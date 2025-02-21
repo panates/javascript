@@ -1,6 +1,6 @@
 {
   "name": "@panates/eslint-config",
-  "version": "2.0.3",
+  "version": "2.0.4",
   "description": "Rules for Panates ESLint config, following our styleguide",
   "type": "module",
   "module": "./index.js",
