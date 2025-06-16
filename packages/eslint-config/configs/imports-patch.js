@@ -2,6 +2,7 @@ import eslintPluginImportX from 'eslint-plugin-import-x';
 import simpleImportSort from 'eslint-plugin-simple-import-sort';
 
 export default [
+  // eslint-disable-next-line import-x/no-named-as-default-member
   eslintPluginImportX.flatConfigs.recommended,
   {
     plugins: {
@@ -49,7 +50,7 @@ export default [
 
       // Ensures that there is no resolvable path back to this module via its dependencies.
       // https://github.com/antfu/eslint-plugin-import-x/blob/master/docs/rules/no-cycle.md
-      'import-x/no-cycle': 'error',
+      'import-x/no-cycle': 'off',
 
       // Forbid a module from importing itself. This can sometimes happen during refactoring.
       // https://github.com/antfu/eslint-plugin-import-x/blob/master/docs/rules/no-self-import.md

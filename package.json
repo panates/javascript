@@ -10,11 +10,11 @@
     "tslib": "^2.8.1"
   },
   "devDependencies": {
-    "@types/node": "^22.13.4",
+    "@types/node": "^24.0.3",
     "husky": "^9.1.7",
-    "npm-check-updates": "^17.1.14",
-    "rman": "^0.33.2",
-    "typescript": "^5.7.3"
+    "npm-check-updates": "^18.0.1",
+    "rman": "^0.36.5",
+    "typescript": "^5.8.3"
   },
   "author": "Panates",
   "license": "MIT",
