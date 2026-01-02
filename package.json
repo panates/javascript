@@ -19,6 +19,7 @@
   "author": "Panates",
   "license": "MIT",
   "scripts": {
+    "build": "echo \"No build required\"",
     "qc": "rman run lint",
     "prepare": "husky"
   }
