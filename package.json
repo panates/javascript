@@ -19,7 +19,7 @@
   "author": "Panates",
   "license": "MIT",
   "scripts": {
-    "citest": "rman run lint",
+    "qc": "rman run lint",
     "prepare": "husky"
   }
 }
