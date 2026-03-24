@@ -42,7 +42,7 @@ export default [
       'import-x/no-named-as-default-member': 'error',
 
       // https://github.com/antfu/eslint-plugin-import-x/blob/master/docs/rules/no-unused-modules.md
-      'import-x/no-unused-modules': 'error',
+      // 'import-x/no-unused-modules': 'error',
 
       // This rule forbids the import of modules using absolute paths.
       // https://github.com/antfu/eslint-plugin-import-x/blob/master/docs/rules/no-absolute-path.md
