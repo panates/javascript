@@ -1,6 +1,6 @@
 {
   "name": "@panates/eslint-config-ts",
-  "version": "2.0.10",
+  "version": "2.0.11",
   "description": "TypeScript rules for Panates ESLint config, following our styleguide",
   "type": "module",
   "module": "index.js",
@@ -9,7 +9,7 @@
     "./package.json": "./package.json"
   },
   "dependencies": {
-    "@panates/eslint-config": "^2.0.10"
+    "@panates/eslint-config": "^2.0.11"
   },
   "peerDependencies": {
     "typescript": ">=5.0.0",
