@@ -13,6 +13,7 @@ export default [
       'import-x/no-unresolved': 'off',
       'no-shadow': 'off',
       'import-x/export': 'off',
+      'import-x/namepsace': 'off',
       'no-empty-function': 'off',
 
       // Rules for TypeScripts

@@ -9,7 +9,7 @@
     "./package.json": "./package.json"
   },
   "dependencies": {
-    "@panates/eslint-config": "^2.1.1"
+    "@panates/eslint-config": "2.x.x"
   },
   "peerDependencies": {
     "typescript": ">=5.0.0",
