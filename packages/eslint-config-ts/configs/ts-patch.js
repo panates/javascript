@@ -16,12 +16,20 @@ export default [
       'import-x/namespace': 'off',
       'no-empty-function': 'off',
 
-      // Rules for TypeScripts
+      // Rules for TypeScript
       '@typescript-eslint/array-type': 'error',
       '@typescript-eslint/explicit-member-accessibility': [
         'off',
         {
           accessibility: 'explicit',
+        },
+      ],
+      '@typescript-eslint/consistent-type-imports': [
+        'error',
+        {
+          prefer: 'type-imports',
+          fixStyle: 'separate-type-imports', // or 'inline-type-imports'
+          disallowTypeAnnotations: true,
         },
       ],
       '@typescript-eslint/interface-name-prefix': 'off',
