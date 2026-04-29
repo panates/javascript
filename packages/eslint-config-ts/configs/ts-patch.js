@@ -24,14 +24,7 @@ export default [
           accessibility: 'explicit',
         },
       ],
-      '@typescript-eslint/consistent-type-imports': [
-        'error',
-        {
-          prefer: 'type-imports',
-          fixStyle: 'separate-type-imports', // or 'inline-type-imports'
-          disallowTypeAnnotations: true,
-        },
-      ],
+      '@typescript-eslint/consistent-type-imports': 'off',
       '@typescript-eslint/interface-name-prefix': 'off',
       '@typescript-eslint/member-ordering': 'off',
       '@typescript-eslint/no-empty-interface': 'off',
