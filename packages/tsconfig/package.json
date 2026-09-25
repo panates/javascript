@@ -45,9 +45,9 @@
     "es2022"
   ],
   "contributors": [
-    {
-      "name": "Eray Hanoğlu",
-      "url": "https://github.com/erayhanoglu"
-    }
+    "Eray Hanoglu <e.hanoglu@panates.com>",
+    "Ilker Gurelli <i.gurelli@panates.com>",
+    "Onur Tokel <o.tokel@panates.com>",
+    "Bircan Yuruk <b.yuruk@panates.com>"
   ]
 }
