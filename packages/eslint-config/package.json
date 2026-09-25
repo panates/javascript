@@ -12,14 +12,14 @@
     "./package.json": "./package.json"
   },
   "peerDependencies": {
-    "@eslint/js": ">=9.0.0 <11",
-    "eslint": ">=9.0.0 <11",
-    "eslint-config-prettier": ">=10.0.0 <11",
-    "eslint-plugin-import-x": ">=4.0.0",
-    "eslint-plugin-prettier": ">=5.0.0",
-    "eslint-plugin-security": ">=4.0.0",
-    "eslint-plugin-simple-import-sort": "^14.0.0",
-    "globals": ">=15.0.0"
+    "@eslint/js": ">=10",
+    "eslint": ">=10",
+    "eslint-config-prettier": ">=10",
+    "eslint-plugin-import-x": ">=4",
+    "eslint-plugin-prettier": ">=5",
+    "eslint-plugin-security": ">=4",
+    "eslint-plugin-simple-import-sort": "^14",
+    "globals": ">=15"
   },
   "scripts": {
     "format": "prettier . --write --log-level=warn",
@@ -57,9 +57,9 @@
     "es2022"
   ],
   "contributors": [
-    {
-      "name": "Eray Hanoğlu",
-      "url": "https://github.com/erayhanoglu"
-    }
+    "Eray Hanoglu <e.hanoglu@panates.com>",
+    "Ilker Gurelli <i.gurelli@panates.com>",
+    "Onur Tokel <o.tokel@panates.com>",
+    "Bircan Yuruk <b.yuruk@panates.com>"
   ]
 }
