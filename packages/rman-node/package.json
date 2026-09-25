@@ -1,0 +1,67 @@
+{
+  "name": "@panates/rman-node",
+  "version": "1.0.0",
+  "description": "Panates rman configuration for a TypeScript monorepo, following our styleguide",
+  "type": "module",
+  "module": "./index.js",
+  "exports": {
+    ".": "./index.js",
+    "./commands/check": "./commands/check.js",
+    "./commands/format": "./commands/format.js",
+    "./commands/lint": "./commands/lint.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.js",
+    "commands",
+    "README.md",
+    "LICENSE"
+  ],
+  "peerDependencies": {
+    "rman": ">=2.0.0-0",
+    "dpdm": ">=4",
+    "prettier": ">=3",
+    "eslint": ">=9"
+  },
+  "scripts": {
+    "format": "prettier . --write --log-level=warn",
+    "lint": "eslint . --max-warnings=0 --fix",
+    "prepublishOnly": "npm run format && npm run lint",
+    "typecheck": "tsc --noEmit -p test/tsconfig.json --tsBuildInfoFile node_modules/.cache/typecheck.tsbuildinfo",
+    "test": "mocha"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "author": "Panates",
+  "license": "MIT",
+  "homepage": "https://github.com/panates/javascript.git",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/panates/javascript.git",
+    "directory": "./packages/rman-node"
+  },
+  "bugs": {
+    "url": "https://github.com/panates/javascript/issues"
+  },
+  "keywords": [
+    "rman",
+    "rmanrc",
+    "config",
+    "panates",
+    "monorepo",
+    "typescript",
+    "styleguide",
+    "release",
+    "workspaces"
+  ],
+  "contributors": [
+    "Eray Hanoglu <e.hanoglu@panates.com>",
+    "Ilker Gurelli <i.gurelli@panates.com>",
+    "Onur Tokel <o.tokel@panates.com>",
+    "Bircan Yuruk <b.yuruk@panates.com>"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}

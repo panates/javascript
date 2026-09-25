@@ -1,0 +1,12 @@
+# This repository is a Node one, and says so.
+#
+# It was `extends: rman-node` - a second package that had to be installed before anything worked,
+# which is the cost folding the built-ins into rman removed. That package no longer exists, and the
+# line outlived it: every command here exited 1 with
+# `"extends" target "rman-node" could not be resolved`.
+#
+# `platform`, not `plugins`, and the two are the same statement at a repository root: a root
+# declaration naming a built-in puts it at the front of `plugins`, so `clean` and `ci` arrive with
+# the technology. `platform` says the additional thing - which technology a package *belongs to* -
+# and here there is one answer for all of them.
+platform: node
