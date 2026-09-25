@@ -1,3 +1,7 @@
 {
-  "extends": "./packages/tsconfig/node.json",
+  "extends": "@panates/tsconfig/node.json",
+  "compilerOptions": {
+    "composite": true,
+    "incremental": true,
+  },
 }
