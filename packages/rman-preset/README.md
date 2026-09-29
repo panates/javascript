@@ -222,8 +222,35 @@ extends: '@panates/rman-preset'
 ```
 
 Measured both ways against a real repository; `"[*]"` works as well as `"[platform:node]"`. The
-overridable vars are `buildDir`, `coveragePath` and `copyFiles` - the last a list of files to
-copy into the build directory, looked up in the package first and the repository root second.
+overridable vars are `buildDir`, `coveragePath` and `copyFiles`.
+
+### `copyFiles`
+
+A list of what to copy into the build directory. Sources are looked up in the package first and the
+repository root second, so one declaration covers a per-package `README.md` and a shared `LICENSE`.
+
+```yaml
+'[platform:node]':
+  vars:
+    copyFiles:
+      - README.md # -> build/README.md
+      - LICENSE > doc/LICENSE # -> build/doc/LICENSE
+      - CHANGES.md, NOTICE > legal/ # both, into build/legal/
+      - '*.md > doc/' # every .md, into build/doc/
+      - { from: assets, to: assets } # the directory, recursively
+```
+
+`>` is the whole of the string form, and **a trailing `/` on the destination is what says
+"directory"**. Without one the destination is the file's own path, so it can rename - and several
+sources or a glob without it is an error rather than five files overwriting each other at one path.
+
+**A glob flattens to basenames, and a collision throws.** `'src/**/*.md > doc/'` putting `a/x.md`
+and `b/x.md` in one place is a mistake worth reporting rather than a silent last-wins. To preserve a
+tree, copy the directory: `{ from: 'src/templates', to: 'templates' }`.
+
+**A glob has to be quoted in YAML.** `*` is the alias indicator, so `- *.md > doc/` fails to load
+with `bad indentation of a mapping entry` - the same rule that makes `"[*]"` selectors need quotes.
+Every form that does not start with `*` is fine unquoted.
 
 ## Notes
 

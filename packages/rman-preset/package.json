@@ -15,10 +15,10 @@
     "LICENSE"
   ],
   "peerDependencies": {
-    "rman": ">=2.0.0-0",
     "dpdm": ">=4",
+    "eslint": ">=9",
     "prettier": ">=3",
-    "eslint": ">=9"
+    "rman": ">=2.0.0-0"
   },
   "scripts": {
     "format": "prettier . --write --log-level=warn",
@@ -60,5 +60,8 @@
   ],
   "publishConfig": {
     "access": "public"
+  },
+  "dependencies": {
+    "tinyglobby": "^0.2.17"
   }
 }

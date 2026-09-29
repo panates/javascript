@@ -290,6 +290,80 @@ describe('@panates/rman-preset: the config a repository inherits', () => {
      * publish ends - so this copy is borrowed for the duration and restored, never published and
      * never deleted.
      */
+    /**
+     * **Every form of a `copyFiles` entry, in one fixture.** The string DSL's whole addition over a
+     * bare path is `>`; a trailing `/` on the destination is what says "directory".
+     *
+     * The glob is written quoted on purpose and the case would not load otherwise: `*` is YAML's
+     * alias indicator, so `- *.md > doc/` fails with `bad indentation of a mapping entry` - the
+     * same rule that makes `"[*]"` selectors need quotes. Measured before the DSL was designed.
+     */
+    it('copies each copyFiles form to where it says', async () => {
+      const dir = fixtureDir({
+        rmanrc: [
+          `extends: '@panates/rman-preset'`,
+          `"[platform:node]":`,
+          `  vars:`,
+          `    copyFiles:`,
+          `      - README.md`,
+          `      - LICENSE > doc/LICENCE.txt`,
+          `      - CHANGES.md, NOTICE > legal/`,
+          `      - '*.md > every/'`,
+          `      - { from: assets, to: assets }`,
+          ``,
+        ].join('\n'),
+        files: {
+          'packages/pkg-a/README.md': '# a',
+          'packages/pkg-a/CHANGES.md': 'changes',
+          'packages/pkg-a/NOTICE': 'notice',
+          'packages/pkg-a/assets/logo.svg': '<svg/>',
+          'packages/pkg-a/assets/icons/star.svg': '<svg/>',
+          LICENSE: 'MIT',
+        },
+      });
+      const repo = await Repository.create(dir);
+      const pkg = repo.getPackage('pkg-a')!;
+
+      const after = buildScript(repo).after as (ctx: { pkg: unknown; repository: unknown }) => void;
+      after({ pkg, repository: repo });
+
+      const at = (...p: string[]) => fs.existsSync(path.join(pkg.dirname, 'build', ...p));
+
+      /** A bare path keeps the old shape: basename, at the build root. */
+      expect(at('README.md')).toBe(true);
+      /** No trailing slash - the destination is the file's own path, renamed and all. */
+      expect(at('doc', 'LICENCE.txt')).toBe(true);
+      /** Several sources, one directory. NOTICE is found in the package, LICENSE at the root. */
+      expect(at('legal', 'CHANGES.md')).toBe(true);
+      expect(at('legal', 'NOTICE')).toBe(true);
+      /** The glob reaches both .md files and flattens them to basenames. */
+      expect(at('every', 'README.md')).toBe(true);
+      expect(at('every', 'CHANGES.md')).toBe(true);
+      /** The object form copies a directory as it stands, nested entries included. */
+      expect(at('assets', 'logo.svg')).toBe(true);
+      expect(at('assets', 'icons', 'star.svg')).toBe(true);
+    });
+
+    /** Several sources with a file destination is a mistake, not five files racing for one path. */
+    it('refuses a multi-source entry whose destination is a single file', async () => {
+      const dir = fixtureDir({
+        rmanrc: [
+          `extends: '@panates/rman-preset'`,
+          `"[platform:node]":`,
+          `  vars:`,
+          `    copyFiles:`,
+          `      - README.md, NOTICE > doc/one.txt`,
+          ``,
+        ].join('\n'),
+        files: { 'packages/pkg-a/README.md': '# a', 'packages/pkg-a/NOTICE': 'notice' },
+      });
+      const repo = await Repository.create(dir);
+      const pkg = repo.getPackage('pkg-a')!;
+
+      const after = buildScript(repo).after as (ctx: { pkg: unknown; repository: unknown }) => void;
+      expect(() => after({ pkg, repository: repo })).toThrow(/destination is a single file/);
+    });
+
     it('writes a consumer-shaped package.json into the build directory', async () => {
       const dir = fixtureDir({
         rmanrc: `extends: '@panates/rman-preset'\n`,
