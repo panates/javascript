@@ -1,6 +1,6 @@
 {
   "name": "@panates/rman-preset",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "Panates rman configuration",
   "type": "module",
   "module": "./index.js",
