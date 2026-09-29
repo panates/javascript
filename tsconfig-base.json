@@ -2,6 +2,6 @@
   "extends": "@panates/tsconfig/node.json",
   "compilerOptions": {
     "composite": true,
-    "incremental": true,
-  },
+    "incremental": true
+  }
 }
