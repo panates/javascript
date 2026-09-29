@@ -57,7 +57,11 @@ jobs:
         uses: panates/gh-setup-node@v2
         with:
           node-version: '20.19.2'
-          rman-version: '2'
+          # **An exact version, and only until rman 2.0.0 ships.** `rman@2` does not resolve: npm's
+          # dist-tags are `latest: 2.0.0-beta.3` and `beta: 2.0.0-beta.5`, and a bare `2` range does
+          # not match a prerelease - `npm view rman@2` answers `No match found for version 2`, and
+          # `npm i -g rman@2` fails the same way. Put `'2'` back once 2.0.0 is published.
+          rman-version: '2.0.0-beta.5'
 
       # **`npm run qc`, not `rman run qc`.** Under rman 2 the monorepo root's own script no longer
       # counts toward the script being defined - the root contributes only pre/post bookends - so
