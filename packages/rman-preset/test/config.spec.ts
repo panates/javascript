@@ -188,6 +188,22 @@ describe('@panates/rman-preset: the config a repository inherits', () => {
       }
     });
 
+    /**
+     * **`version.changelog` has to be on the *root's* config, and that is the whole assertion.**
+     * `version.command.ts` reads `repository.config?.version?.changelog` - once per run, off the
+     * root - so a declaration under `"[*]"` would work in a single-package repository, where a glob
+     * reaches the root since rman 2.1.0, and silently do nothing in a monorepo. This fixture is a
+     * monorepo, which is what makes the case able to fail.
+     *
+     * `repo.config` rather than `repo.rootPackage.config`: `repository.config` is what the command
+     * actually reads, and in a monorepo the two are the same object - asserting the one the code
+     * uses is the point.
+     */
+    it('asks version to write the changelog, declared where the command reads it', async () => {
+      const repo = await repositoryFor();
+      expect(repo.config.version?.changelog).toBe(true);
+    });
+
     it("stamps the version into each package's own source constant", async () => {
       const repo = await repositoryFor();
       /** **`optional`, because this line is written on every consumer's behalf.** A file that exists

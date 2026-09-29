@@ -31,6 +31,36 @@ export default {
       clean: {
         include: '${{ [...value, vars.coveragePath] }}',
       },
+
+      version: {
+        /**
+         * Each bumped package's `CHANGELOG.md` is written by `version`, folded into the same commit
+         * as the bump.
+         */
+        /* **`version` is the only stage that can do this, and the other two both fail.**
+         *
+         * *Before* it: the entry's heading is the version being cut, which does not exist until the
+         * plan is computed - so a separate `changelog --write` step would have to read it back from
+         * `version --json` and pass `--release-version`. And the file it writes leaves the tree
+         * dirty, which `version` then refuses, so it needs a commit of its own and the tag lands on
+         * the one after it.
+         *
+         * *After* it: the new tag is already there, auto-detection finds it and reports nothing
+         * changed, and the entry comes out empty. (`github-release` escapes that by passing the
+         * boundary explicitly; a plain `changelog --write` step cannot.)
+         *
+         * `version --changelog` hands `ChangelogService` the pre-bump tag explicitly, so detection
+         * never runs, and the manifest bump, the changelog entry and the version stamps land in one
+         * commit under one tag - the tagged commit carries its own release notes.
+         *
+         * **Declared under `"[/]"`, and the level is load-bearing.** `version.command.ts` reads
+         * `repository.config?.version?.changelog` - the *root's* config, once per run, not per
+         * package. Under `"[*]"` this would work in a single-package repository (where a glob
+         * reaches the root since rman 2.1.0) and silently do nothing in a monorepo, which is the
+         * same wrong-level trap `run.<script>`'s `concurrency` and `topo` keys already document.
+         */
+        changelog: true,
+      },
     },
 
     '[*]': {
