@@ -28,7 +28,7 @@ jobs:
           github.event_name == 'push' &&
           !(
             contains(github.event.head_commit.message, 'no-test') ||
-            ( 
+            (
               startsWith(github.event.head_commit.message, 'Merge pull request') &&
               contains(github.event.head_commit.message, '/dev')
             )
@@ -36,35 +36,33 @@ jobs:
         )
       )
     uses: ./.github/workflows/test.yml
-    secrets:
-      PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-
-
-  release_after_test:
-    # Wait for "test" job
-    needs: test
-    uses: panates/github-actions/.github/workflows/node-release.yaml@v1
-    secrets:
-      PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   release:
+    needs: test
+    # `always()` because `needs` alone would block this whenever `test` is *skipped*, which is the
+    # normal path for a `no-test` commit or a merge from /dev. This one condition replaces the pair
+    # of mirror-image jobs that used to be here - `release_after_test` with `needs: test`, and
+    # `release` with the test condition negated - which meant the release call was written down
+    # twice and the two conditions had to be kept in step by hand.
     if: >
-      !contains(github.event.head_commit.message, 'no-release') &&
-      !(
-        (github.event_name == 'workflow_dispatch' && github.event.inputs.skip-tests != 'true') ||
-        (
-          github.event_name == 'push' &&
-          !(
-            contains(github.event.head_commit.message, 'no-test') ||
-            ( 
-              startsWith(github.event.head_commit.message, 'Merge pull request') &&
-              contains(github.event.head_commit.message, '/dev')
-            )
-          )
-        )
-      )
-    uses: panates/github-actions/.github/workflows/node-release.yaml@v1
+      always() && !cancelled() &&
+      (needs.test.result == 'success' || needs.test.result == 'skipped') &&
+      !contains(github.event.head_commit.message, 'no-release')
+    uses: panates/github-actions/.github/workflows/node-release.yaml@v3
+    # Declared on the calling job because that is what governs a reusable workflow's own
+    # permissions. `contents: write` is what `rman version --push` and the GitHub Release need;
+    # `id-token: write` is only used if this repo switches to npm Trusted Publishing, and costs
+    # nothing while NPM_TOKEN is still being passed.
+    permissions:
+      id-token: write
+      contents: write
     secrets:
-      PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+      # PERSONAL_ACCESS_TOKEN is no longer passed: it became optional in @v3, and this repo has
+      # nothing for it to authenticate - every package publishes to npmjs.org and nothing is
+      # pulled from npm.pkg.github.com. The checkout and the version push use the job's own
+      # GITHUB_TOKEN, which is also why a release does not trigger a second run of itself.
+      #
+      # NPM_TOKEN can be dropped too, once each @panates package is registered as a Trusted
+      # Publisher on npmjs.com against *this* file's name (release.yml) - see
+      # https://github.com/panates/github-actions/blob/v3/docs/node-release.md
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}

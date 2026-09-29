@@ -2,9 +2,6 @@ name: Test
 on:
   # Can be called from other workflows
   workflow_call:
-    secrets:
-      PERSONAL_ACCESS_TOKEN:
-        required: true
 
   # Can be run manually
   workflow_dispatch:
@@ -35,7 +32,7 @@ jobs:
         github.event_name == 'push' &&
         !(
           contains(github.event.head_commit.message, 'no-test') ||
-          ( 
+          (
             startsWith(github.event.head_commit.message, 'Merge pull request') &&
             contains(github.event.head_commit.message, '/dev')
           )
@@ -45,17 +42,24 @@ jobs:
     timeout-minutes: 60
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
+      # Checks out as well, so there is no separate actions/checkout step.
+      #
+      # `panates/ghac-setup-node` was the old name of this same repository - GitHub still redirects
+      # it, which is why it kept working, but the current name is what should be written down.
+      #
+      # `rman-version` replaces the `npm install rman -g` step this used to have: that installed
+      # whatever `latest` happened to be, so the day rman 2.0.0 reached `latest` this job would have
+      # jumped a major without anything here changing.
       - name: 'Setup Environment'
-        uses: panates/ghac-setup-node@v1
+        uses: panates/gh-setup-node@v2
         with:
           node-version: '20.19.2'
-          token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          rman-version: '2'
 
-      - name: Install rman
-        run: npm install rman -g
-
+      # **`npm run qc`, not `rman run qc`.** Under rman 2 the monorepo root's own script no longer
+      # counts toward the script being defined - the root contributes only pre/post bookends - so
+      # `rman run qc` fails with `No package defines a "qc" script.` (measured, exit 1), since `qc`
+      # is declared in the root package.json alone. npm runs that root script, which is itself
+      # `rman run lint`, and `lint` *is* declared by the packages.
       - name: Run qc tests
-        run: rman run qc
+        run: npm run qc
