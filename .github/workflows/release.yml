@@ -49,6 +49,14 @@ jobs:
       (needs.test.result == 'success' || needs.test.result == 'skipped') &&
       !contains(github.event.head_commit.message, 'no-release')
     uses: panates/github-actions/.github/workflows/node-release.yaml@v3
+    with:
+      # **`npm run build`, not the default `rman build`.** No package here declares a `build`
+      # script - only the root does, and it is an `echo`. Under rman 2 the monorepo root's own
+      # script no longer counts toward the script being defined, so `rman build` fails outright
+      # with `No package defines a "build" script.` (measured: it failed this repository's first
+      # @v3 release, after Version had already bumped and pushed). Same rule that made
+      # `rman run qc` in test.yml become `npm run qc`.
+      build_script: 'npm run build'
     # Declared on the calling job because that is what governs a reusable workflow's own
     # permissions. `contents: write` is what `rman version --push` and the GitHub Release need;
     # `id-token: write` is only used if this repo switches to npm Trusted Publishing, and costs
