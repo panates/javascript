@@ -23,7 +23,7 @@
   "scripts": {
     "format": "prettier . --write --log-level=warn",
     "lint": "eslint . --max-warnings=0 --fix",
-    "prepublishOnly": "npm run format && npm run lint",
+    "prepublishOnly": "prettier . --check && eslint . --max-warnings=0",
     "typecheck": "tsc --noEmit -p test/tsconfig.json --tsBuildInfoFile node_modules/.cache/typecheck.tsbuildinfo",
     "test": "mocha"
   },
