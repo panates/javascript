@@ -7,6 +7,8 @@ declare const index: {
   };
   configPatches: {
     ts: Linter.Config;
+    /** Opt-in - the rule has no autofix. See configs/member-ordering.js. */
+    memberOrdering: Linter.Config;
   };
 };
 export default index;

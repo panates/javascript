@@ -26,36 +26,6 @@ export default [
       ],
       '@typescript-eslint/consistent-type-imports': 'off',
       '@typescript-eslint/interface-name-prefix': 'off',
-      // Order class members so a reader meets the shape, then the door, then the API, then the
-      // workings. This is the rule's own default order with one deviation: a public static method
-      // comes before the constructor, because a factory (`create()`, `from()`) is how you get an
-      // instance and belongs beside the constructor it stands in for - the default buries it below
-      // the accessors.
-      // https://typescript-eslint.io/rules/member-ordering
-      '@typescript-eslint/member-ordering': [
-        'error',
-        {
-          default: [
-            'public-static-field',
-            'protected-static-field',
-            'private-static-field',
-            'public-instance-field',
-            'protected-instance-field',
-            'private-instance-field',
-            'public-static-method',
-            'public-constructor',
-            'protected-constructor',
-            'private-constructor',
-            'public-instance-get',
-            'public-instance-set',
-            'public-instance-method',
-            'protected-instance-method',
-            'private-instance-method',
-            'protected-static-method',
-            'private-static-method',
-          ],
-        },
-      ],
       '@typescript-eslint/no-empty-interface': 'off',
       '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-namespace': 'off',
