@@ -190,7 +190,12 @@ describe('@panates/rman-preset: the config a repository inherits', () => {
 
     it("stamps the version into each package's own source constant", async () => {
       const repo = await repositoryFor();
-      expect(repo.getPackage('pkg-a')?.config.version?.stamp).toEqual(['src/constants.ts']);
+      /** **`optional`, because this line is written on every consumer's behalf.** A file that exists
+       *  and holds nothing rewritable is otherwise an error - right when a repository names the path
+       *  itself, wrong for a preset that cannot know which of its consumers keeps a constant there.
+       *  Measured on `panates/postgrejs`, where it refused a release over a line nobody in that
+       *  repository wrote. */
+      expect(repo.getPackage('pkg-a')?.config.version?.stamp).toEqual([{ file: 'src/constants.ts', optional: true }]);
       /** `group` is read from each package's config, and in a monorepo the root is not one of them.
        *  `false` means a version line per package - this config stopped releasing everything on one
        *  shared number, and the assertion said `true` for a while after it did. */
@@ -359,6 +364,78 @@ describe('@panates/rman-preset: the config a repository inherits', () => {
 
       expect(fs.existsSync(path.join(into, 'README.md'))).toBe(true);
       expect(fs.existsSync(path.join(into, 'doc', 'NOTES.md'))).toBe(true);
+    });
+
+    /**
+     * **The build directory's version constant is rewritten to `package.json`'s version.**
+     *
+     * Not a replacement for `rman version`, which stamps the *source* and commits it so the tagged
+     * commit records what shipped - and `@v3` releases Version -> Build -> Publish, so the published
+     * artifact is already right and this changes nothing there. What it is for is the build
+     * directory *between* releases, which is what a person debugs: a repository that keeps a
+     * placeholder in its source has a `build/` reporting the wrong version until a bespoke postbuild
+     * script fixes it. rman's own is exactly that - `src/constants.ts` reads
+     * `export const version = '1'` and `support/postbuild.cjs` bakes the real one in.
+     *
+     * The fixture uses a placeholder for that reason: with a source already carrying the right
+     * version the call is a no-op, which is correct and proves nothing.
+     */
+    it('stamps the build directory with the package.json version', async () => {
+      const dir = fixtureDir({
+        rmanrc: `extends: '@panates/rman-preset'\n`,
+        files: { 'packages/pkg-a/build/constants.js': "export const version = '1';\n" },
+      });
+      const repo = await Repository.create(dir);
+      const pkg = repo.getPackage('pkg-a')!;
+
+      const after = buildScript(repo).after as (ctx: { pkg: unknown; repository: unknown }) => void;
+      after({ pkg, repository: repo });
+
+      const written = fs.readFileSync(path.join(pkg.dirname, 'build', 'constants.js'), 'utf-8');
+      expect(written).toBe(`export const version = '${pkg.version}';\n`);
+      /** Read off the manifest, not invented - the one place a package's version is authoritative. */
+      expect(pkg.version).toBeTruthy();
+    });
+
+    /**
+     * **Silence is the contract here, and it is the opposite of `version.stamp`'s.** That key errors
+     * on a file it cannot rewrite, because there a repository named a *source* file it expects to be
+     * stamped and silence would ship a stale constant on every release. This is derived output, the
+     * source has already had its say, and a build must not fail over a convention the package never
+     * adopted - most packages have no `constants.js` at all.
+     */
+    it('says nothing when there is no constants.js, or no version constant in it', async () => {
+      const dir = fixtureDir({
+        rmanrc: `extends: '@panates/rman-preset'\n`,
+        files: {
+          'packages/pkg-a/build/.keep': '',
+          'packages/pkg-b/build/constants.js': "export const OTHER = '1';\n",
+        },
+      });
+      const repo = await Repository.create(dir);
+
+      for (const name of ['pkg-a', 'pkg-b']) {
+        const pkg = repo.getPackage(name);
+        if (!pkg) continue;
+        const after = buildScript(repo, name).after as (ctx: { pkg: unknown; repository: unknown }) => void;
+        expect(() => after({ pkg, repository: repo })).not.toThrow();
+      }
+      const untouched = path.join(dir, 'packages/pkg-b/build/constants.js');
+      if (fs.existsSync(untouched)) expect(fs.readFileSync(untouched, 'utf-8')).toBe("export const OTHER = '1';\n");
+    });
+
+    /** **The package exports it**, like `copyFiles`, so a repository stamping something
+     *  `vars.stampFiles` does not cover can call it from its own hook. */
+    it('exports stampFiles for a repository to use directly', async () => {
+      const { stampFiles } = await import('../index.js');
+      expect(typeof stampFiles).toBe('function');
+
+      const dir = fixtureDir({ files: { 'out/constants.js': "export const version = '0.0.0';\n" } });
+      const into = path.join(dir, 'out');
+      const stamped = stampFiles(['constants.js', 'missing.js'], { into, version: '4.5.6' });
+
+      expect(stamped).toEqual([path.join(into, 'constants.js')]);
+      expect(fs.readFileSync(path.join(into, 'constants.js'), 'utf-8')).toBe("export const version = '4.5.6';\n");
     });
 
     /** Several sources with a file destination is a mistake, not five files racing for one path. */

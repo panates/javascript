@@ -13,3 +13,7 @@ export default nodePreset;
 /** Exported as a utility so a repository's own `.rmanrc` can copy files the same way this
  *  config's build hook does. */
 export { copyFiles } from './node/copy-files.js';
+
+/** Likewise for the version constant in a build directory - a repository stamping something this
+ *  config's `vars.stampFiles` does not cover can call it directly from its own hook. */
+export { stampFiles } from './node/stamp-files.js';

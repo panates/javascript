@@ -4,6 +4,7 @@ import checkCommand from './commands/check.js';
 import formatCommand from './commands/format.js';
 import lintCommand from './commands/lint.js';
 import { copyFiles } from './copy-files.js';
+import { stampFiles } from './stamp-files.js';
 
 /**
  * @type {import('rman').RmanNodeConfig}
@@ -20,6 +21,10 @@ export default {
       coveragePath: '${{ path.join(repository.dirname, "coverage") }}',
       buildDir: 'build',
       copyFiles: ['README.md', 'LICENSE'],
+      /* Paths inside the build directory whose version constant is rewritten after a build - see
+       * `stampFiles`. `constants.js` because `src/constants.ts` is this organization's convention
+       * and tsc's `rootDir`/`outDir` puts it there; a package without one is skipped in silence. */
+      stampFiles: ['constants.js'],
     },
 
     '[/]': {
@@ -32,7 +37,14 @@ export default {
       group: false,
 
       version: {
-        stamp: ['src/constants.ts'],
+        /* **`optional`, because this line is written on forty repositories' behalf.** A listed file
+         * that exists and holds nothing rewritable is normally an error - which is right when a
+         * repository names the path itself, since a typo or a renamed identifier would otherwise
+         * ship a stale constant on every release. Here the asker is a preset that cannot know which
+         * of its consumers keeps a version constant in `src/constants.ts`; it means "stamp it where
+         * there is one". Measured on `panates/postgrejs`: the file exists, has never held one, and
+         * `rman version` refused the release over a line nobody in that repository wrote. */
+        stamp: [{ file: 'src/constants.ts', optional: true }],
       },
 
       publish: {
@@ -59,11 +71,26 @@ export default {
             const vars = /** @type {Record<string, string | undefined>} */ (pkg.config.vars ?? {});
             const entries = vars.copyFiles ? (Array.isArray(vars.copyFiles) ? vars.copyFiles : [vars.copyFiles]) : [];
             const buildDir = pkg.config.publish?.npm?.directory ?? 'build';
+            const buildPath = path.resolve(pkg.dirname, buildDir);
             copyFiles(entries, {
-              into: path.resolve(pkg.dirname, buildDir),
+              into: buildPath,
               lookIn: [pkg.dirname, repository.dirname],
             });
             writeBuildManifest(pkg, buildDir);
+            /* **Stamped here as well as by `rman version`, not instead of it.** `version` rewrites
+             * the source and commits it, so the tagged commit records what shipped; `@v3` releases
+             * Version -> Build -> Publish, so the published artifact is already right and this call
+             * changes nothing there. What it is for is the build directory *between* releases, which
+             * is what a person debugs: a repository keeping a placeholder in its source (rman's own
+             * `src/constants.ts` reads `export const version = '1'`) otherwise has a `build/` that
+             * reports the wrong version until a bespoke postbuild script fixes it. This is that
+             * script, once, for every repository extending the preset. */
+            stampFiles(vars.stampFiles ? (Array.isArray(vars.stampFiles) ? vars.stampFiles : [vars.stampFiles]) : [], {
+              into: buildPath,
+              /* `package.json`'s version, which is the one place a package's version is
+               * authoritative - a build can then never disagree with what is about to be published. */
+              version: pkg.version,
+            });
           },
         },
       },
