@@ -83,11 +83,24 @@ commands individually for exactly that reason.
   the _source_, so tests, `ts-node` and git all report what actually shipped - a build-time rewrite
   leaves the checked-in file claiming a placeholder forever.
 - **`rman build`** runs `check` → `lint` → `clean`, then `tsc -b tsconfig-build.json`, then copies
-  `README.md` and the repository's `LICENSE` into `build/`.
+  everything `vars.copyFiles` names into `build/` (`README.md` and `LICENSE` by default), and
+  writes a consumer-shaped `package.json` there - see below.
 - **`check`, `lint`, `lint:fix`** as repository-wide scripts, so no package declares any of its own.
 - **`clean`** removes `build`, `*.tsbuildinfo` and that package's own coverage directory. The
   incremental cache goes with the output deliberately: left behind, `tsc -b` decides everything is
   up to date and emits nothing.
+
+### The build directory gets its own `package.json`
+
+`build.after` writes the package's manifest there, stripped of `devDependencies`, `private`,
+`publishConfig.directory` and every script except the three install hooks - so `build/` is a
+complete package: `node build/index.js` picks up `"type": "module"`, and what a release will
+contain can be read without running a publish.
+
+**It never decides what is published.** `rman publish` derives its own manifest into the same file
+and restores whatever was there when it finishes, so this copy is borrowed for the duration and put
+back - never published, never deleted. `"workspace:"` ranges are left as written here for the same
+reason: resolving them needs every package in the repository, which is rman's job.
 
 ## Commands
 
@@ -209,7 +222,8 @@ extends: '@panates/rman-preset'
 ```
 
 Measured both ways against a real repository; `"[*]"` works as well as `"[platform:node]"`. The
-overridable vars are `buildDir`, `coveragePath`, `readmeFile` and `licenceFile`.
+overridable vars are `buildDir`, `coveragePath` and `copyFiles` - the last a list of files to
+copy into the build directory, looked up in the package first and the repository root second.
 
 ## Notes
 

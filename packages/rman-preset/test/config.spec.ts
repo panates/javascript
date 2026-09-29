@@ -281,6 +281,41 @@ describe('@panates/rman-preset: the config a repository inherits', () => {
     });
 
     /**
+     * **The build directory gets a manifest of its own**, so it is a complete package: `node
+     * build/index.js` needs one beside it to pick up `"type": "module"`, and what a release will
+     * contain can be read without running a publish.
+     *
+     * It never decides what ships. `rman publish` derives its own into the same file and its
+     * `preparePublishManifest` reads whatever is already there first, writing it back when the
+     * publish ends - so this copy is borrowed for the duration and restored, never published and
+     * never deleted.
+     */
+    it('writes a consumer-shaped package.json into the build directory', async () => {
+      const dir = fixtureDir({
+        rmanrc: `extends: '@panates/rman-preset'\n`,
+        files: { 'packages/pkg-a/build/.keep': '' },
+      });
+      const repo = await Repository.create(dir);
+      const pkg = repo.getPackage('pkg-a')!;
+
+      const after = buildScript(repo).after as (ctx: { pkg: unknown; repository: unknown }) => void;
+      after({ pkg, repository: repo });
+
+      const written = path.join(pkg.dirname, 'build', 'package.json');
+      expect(fs.existsSync(written)).toBe(true);
+      const json = JSON.parse(fs.readFileSync(written, 'utf-8'));
+
+      /** The identity a consumer resolves the package by survives. */
+      expect(json.name).toBe(pkg.name);
+      expect(json.version).toBe(pkg.version);
+
+      /** Everything a consumer has no use for is dropped - the same set publish drops. */
+      expect(json.devDependencies).toBeUndefined();
+      expect(json.private).toBeUndefined();
+      expect(json.publishConfig?.directory).toBeUndefined();
+    });
+
+    /**
      * The hook names `rman check` and `rman lint`, which is only safe because this package now
      * *contributes* them - see the `commands` suite below. It used to ship them and leave the
      * repository to install each as a `.rman/<name>.mjs` re-export, so a repository that wrote
