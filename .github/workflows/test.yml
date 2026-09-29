@@ -11,6 +11,9 @@ on:
     branches:
       - dev
     paths:
+      # This file itself: a change to how the tests run is a reason to run them. Without it the
+      # workflow could only be exercised by changing something else at the same time.
+      - '.github/workflows/test.yml'
       - 'packages/*/src/**'
       - 'packages/*/test/**'
       - 'packages/*/*.{json,js,mjs,cjs}'
