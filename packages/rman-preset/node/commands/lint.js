@@ -59,6 +59,7 @@ export default (app) => {
   const repository = app.repository;
   return {
     command: COMMAND,
+    platform: 'node',
     describe: 'Lints the whole repository with eslint (--fix to apply the fixable ones)',
     config,
     positionals,

@@ -64,6 +64,7 @@ export default (app) => {
   const repository = app.repository;
   return {
     command: COMMAND,
+    platform: 'node',
     describe: 'Formats the whole repository with prettier (--check to verify without writing)',
     config,
     positionals,

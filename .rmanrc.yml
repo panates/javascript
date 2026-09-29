@@ -1,2 +1,4 @@
-platform: node
 group: false
+
+changelog:
+  unreleased: false

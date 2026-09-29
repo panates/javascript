@@ -1,19 +1,16 @@
 {
-  "name": "@panates/rman-node",
+  "name": "@panates/rman-preset",
   "version": "1.0.0",
-  "description": "Panates rman configuration for a TypeScript monorepo, following our styleguide",
+  "description": "Panates rman configuration",
   "type": "module",
   "module": "./index.js",
   "exports": {
     ".": "./index.js",
-    "./commands/check": "./commands/check.js",
-    "./commands/format": "./commands/format.js",
-    "./commands/lint": "./commands/lint.js",
     "./package.json": "./package.json"
   },
   "files": [
     "index.js",
-    "commands",
+    "node",
     "README.md",
     "LICENSE"
   ],
@@ -39,7 +36,7 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/panates/javascript.git",
-    "directory": "./packages/rman-node"
+    "directory": "./packages/rman-preset"
   },
   "bugs": {
     "url": "https://github.com/panates/javascript/issues"

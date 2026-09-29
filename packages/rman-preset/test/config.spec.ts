@@ -76,13 +76,13 @@ const HELLO_COMMAND = `export default {
 `;
 
 /**
- * What a repository actually gets by writing `extends: '@panates/rman-node'`.
+ * What a repository actually gets by writing `extends: '@panates/rman-preset'`.
  *
  * Every case here goes through a real `Repository.create`, because that is the only thing that
  * merges the selector blocks, cascades them per package and evaluates the expressions - and every
  * bug this file was written after was invisible until it had.
  */
-describe('@panates/rman-node: the config a repository inherits', () => {
+describe('@panates/rman-preset: the config a repository inherits', () => {
   after(cleanupFixtures);
 
   describe('loading', () => {
@@ -101,9 +101,11 @@ describe('@panates/rman-node: the config a repository inherits', () => {
      * is rman's own as of 2.0, so a spec listing `['clean', 'publish', 'ci']` was pinning where a
      * command happens to live rather than whether the plugin loaded at all.
      *
-     * `provider` is the stabler question and the more direct one: only the plugin can read a
-     * `package.json`, so `'node'` here means the `extends: 'rman-node'` inside this package took.
-     * Without it a package falls back to its directory name at `0.0.0`.
+     * `provider` is the stabler question and the more direct one: only a technology can read a
+     * `package.json`, so `'node'` here means the Node platform is in play. In rman 2 that no longer
+     * comes from anything this package declares - rman lays its own presets under every repository
+     * root - so what this case really pins is that nothing in the preset displaces it. Without a
+     * technology a package falls back to its directory name at `0.0.0`.
      */
     it('brings the Node plugin, so packages are read as npm packages', async () => {
       const repo = await repositoryFor();
@@ -189,8 +191,10 @@ describe('@panates/rman-node: the config a repository inherits', () => {
     it("stamps the version into each package's own source constant", async () => {
       const repo = await repositoryFor();
       expect(repo.getPackage('pkg-a')?.config.version?.stamp).toEqual(['src/constants.ts']);
-      /** `group` is read from each package's config, and in a monorepo the root is not one of them. */
-      expect(repo.getPackage('pkg-a')?.config.group).toBe(true);
+      /** `group` is read from each package's config, and in a monorepo the root is not one of them.
+       *  `false` means a version line per package - this config stopped releasing everything on one
+       *  shared number, and the assertion said `true` for a while after it did. */
+      expect(repo.getPackage('pkg-a')?.config.group).toBe(false);
     });
   });
 
@@ -258,7 +262,12 @@ describe('@panates/rman-node: the config a repository inherits', () => {
      */
     it('copies into the directory publish ships, even when the repository renames it', async () => {
       const dir = fixtureDir({
-        rmanrc: `extends: '@panates/rman-node'\nvars:\n  buildDir: dist\n`,
+        /* **The override goes in a selector block, and an unmarked `vars` will not do.** This
+         * config declares its own `vars` inside `"[platform:node]"`, and rman resolves an unmarked
+         * key as the level's floor beneath every selector block at that level - including one that
+         * arrived through `extends`. Measured both ways against a real repository: unmarked leaves
+         * `publish.npm.directory` at `build`, `"[platform:node]"` or `"[*]"` both give `dist`. */
+        rmanrc: `extends: '@panates/rman-preset'\n"[platform:node]":\n  vars:\n    buildDir: dist\n`,
         files: { 'README.md': '# demo', 'packages/pkg-a/dist/.keep': '' },
       });
       const repo = await Repository.create(dir);
@@ -315,9 +324,10 @@ describe('@panates/rman-node: the config a repository inherits', () => {
     });
 
     /**
-     * **`rman-node`'s own `ci` and `clean` survive ours**, because `commands` appends across
-     * layers - including across `extends`, which is how this package reaches `rman-node` at all.
-     * Five entries, not three.
+     * **rman's own `ci` and `clean` survive ours**, because `commands` appends across layers -
+     * including the presets rman lays under every repository root, which is where those two come
+     * from in 2.x (they were `rman-node`'s while that was a separate package). Five entries, not
+     * three.
      *
      * Worth its own case because the count is the part that looks wrong. Replacement was the
      * silent failure the append rule exists to prevent: a config adding a command of its own would

@@ -86,6 +86,7 @@ export default (app) => {
   const repository = app.repository;
   return {
     command: COMMAND,
+    platform: 'node',
     describe: 'Checks each package for circular dependencies with dpdm',
     config,
     examples: [

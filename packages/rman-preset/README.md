@@ -1,16 +1,21 @@
-# @panates/rman-node
+# @panates/rman-preset
 
 Panates' [rman](https://github.com/panates/rman) configuration for a TypeScript monorepo.
+
+> **Renamed from `@panates/rman-node`.** The old name shipped no 1.0, so there is nothing to migrate
+> beyond the name itself: change your `extends` line and the dependency. The old name described the
+> technology rather than what the package is - a preset - and read as a sibling of rman's own
+> `rman-node` plugin, which no longer exists as a separate package.
 
 ## Install
 
 ```bash
-npm i -D @panates/rman-node
+npm i -D @panates/rman-preset
 ```
 
 ```yaml
 # .rmanrc.yml, at the repository root
-extends: '@panates/rman-node'
+extends: '@panates/rman-preset'
 ```
 
 That is the whole configuration for a repository that follows the layout below. **Requires rman
@@ -29,7 +34,8 @@ That changed in 2.0 of this package. Before it, rman looked for a repository's o
 `.rman/` and nowhere else, so each had to be installed by hand:
 
 ```js
-// .rman/check.mjs - delete this
+// .rman/check.mjs - delete this. The old package name is deliberate: it is what the
+// file you are looking for actually says, since it predates the rename.
 export { default } from '@panates/rman-node/commands/check';
 ```
 
@@ -67,7 +73,9 @@ commands individually for exactly that reason.
 
 ## What it configures
 
-- **One version line** (`group: true`), so every package releases together.
+- **A version line per package** (`group: false`), so a package releases only when its own
+  commits warrant it. Set `group: true` in your own config to put the repository back on one
+  shared number.
 - **Publishing from `build/`** (`publish.npm.directory`). rman writes the manifest there itself at
   publish time, so nothing in the repository generates a second `package.json`. The block is named
   after the publish target it belongs to, as `publish.docker.*` is.
@@ -134,7 +142,7 @@ To pay for it once instead, move it to the root's own bookend, which runs once b
 builds and which every package waits on:
 
 ```yaml
-extends: '@panates/rman-node'
+extends: '@panates/rman-preset'
 run:
   build:
     before: 'rman lint' # once, at the root, as a barrier
@@ -152,7 +160,7 @@ is the same guarantee for a fraction of the work.
 A key you declare replaces this config's:
 
 ```yaml
-extends: '@panates/rman-node'
+extends: '@panates/rman-preset'
 '[*]':
   run:
     build:
@@ -180,6 +188,28 @@ And a selector narrows either to some packages:
   publish:
     skip: true
 ```
+
+### Overriding a `var` needs a selector block
+
+This config declares its `vars` inside `"[platform:node]"`, and rman resolves an unmarked key as the
+level's **floor** beneath every selector block at that level - including one that arrived through
+`extends`. So an unmarked `vars` in your config loses to this one:
+
+```yaml
+# does NOT take - publish.npm.directory stays "build"
+extends: '@panates/rman-preset'
+vars:
+  buildDir: dist
+
+# takes
+extends: '@panates/rman-preset'
+'[platform:node]':
+  vars:
+    buildDir: dist
+```
+
+Measured both ways against a real repository; `"[*]"` works as well as `"[platform:node]"`. The
+overridable vars are `buildDir`, `coveragePath`, `readmeFile` and `licenceFile`.
 
 ## Notes
 

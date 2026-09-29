@@ -4,5 +4,8 @@
     "allowJs": true,
     "checkJs": true
   },
-  "include": ["./**/*.ts", "../index.js", "../commands/*.js"]
+  "include": ["./**/*.ts", "../index.js",
+    "../node/config.js",
+    "../node/commands/*.js"
+  ]
 }

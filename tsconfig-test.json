@@ -10,8 +10,8 @@
       "mocha"
     ],
     "paths": {
-      "@panates/rman-node": [
-        "./packages/rman-node/index.js"
+      "@panates/rman-preset": [
+        "./packages/rman-preset/index.js"
       ]
     }
   }

@@ -26,7 +26,7 @@ export interface FixtureOptions {
 const dirs: string[] = [];
 
 export function fixtureDir(options: FixtureOptions = {}): string {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'panates-rman-node-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'panates-rman-preset-'));
   dirs.push(dir);
 
   write(dir, 'package.json', JSON.stringify({ name: 'root', private: true, workspaces: ['packages/*'] }));
@@ -39,8 +39,13 @@ export function fixtureDir(options: FixtureOptions = {}): string {
    * what a workspace gives you anyway.
    *
    * **Only `rman` now.** There was a second link for `rman-node`, and that package no longer
-   * exists - the Node built-in ships inside rman, reached by `plugins: ['node']`. The link went on
-   * being created, dangling, until something asked what it pointed at.
+   * exists - the Node built-in ships inside rman. The link went on being created, dangling, until
+   * something asked what it pointed at.
+   *
+   * Nothing has to ask for it either: rman 2 lays its own presets under every repository root, so
+   * a repository that declares no technology at all still reads its packages as npm packages.
+   * (`plugins: ['node']` was the spelling while that was a plugin, and it is not valid in 2.x -
+   * `plugins` takes a plugin or a glob naming modules that export one, never a package name.)
    */
   const modules = path.join(dir, 'node_modules');
   fs.mkdirSync(path.join(modules, '@panates'), { recursive: true });
@@ -69,7 +74,7 @@ export function cleanupFixtures(): void {
   for (const dir of dirs.splice(0)) fs.rmSync(dir, { recursive: true, force: true });
 }
 
-const PACKAGE_NAME = '@panates/rman-node';
+const PACKAGE_NAME = '@panates/rman-preset';
 const PACKAGE_ROOT = path.resolve(import.meta.dirname, '..');
 
 function write(dir: string, rel: string, content: string): void {
