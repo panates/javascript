@@ -63,6 +63,8 @@ jobs:
       # GITHUB_TOKEN, which is also why a release does not trigger a second run of itself.
       #
       # NPM_TOKEN can be dropped too, once each @panates package is registered as a Trusted
-      # Publisher on npmjs.com against *this* file's name (release.yml) - see
+      # Publisher on npmjs.com - repository `panates/javascript` (the directory is called
+      # panates-javascript, the repository is not), workflow filename `release.yml`, which is
+      # *this* file rather than the reusable one it calls. See
       # https://github.com/panates/github-actions/blob/v3/docs/node-release.md
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
