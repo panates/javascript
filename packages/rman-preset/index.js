@@ -9,3 +9,7 @@ import nodePreset from './node/config.js';
  * `export { default } from ...` would say the same thing in one line and eslint's
  * `no-restricted-exports` refuses it. */
 export default nodePreset;
+
+/** Exported as a utility so a repository's own `.rmanrc` can copy files the same way this
+ *  config's build hook does. */
+export { copyFiles } from './node/copy-files.js';

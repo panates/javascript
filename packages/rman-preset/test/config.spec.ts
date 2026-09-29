@@ -344,6 +344,23 @@ describe('@panates/rman-preset: the config a repository inherits', () => {
       expect(at('assets', 'icons', 'star.svg')).toBe(true);
     });
 
+    /**
+     * **The package exports it**, so a repository can copy files this way from its own `.rmanrc`
+     * without going through this config's build hook. Asserted through the package root rather
+     * than the module, because the root is the surface a consumer has.
+     */
+    it('exports copyFiles for a repository to use directly', async () => {
+      const { copyFiles } = await import('../index.js');
+      expect(typeof copyFiles).toBe('function');
+
+      const dir = fixtureDir({ files: { 'a/README.md': '# a', 'a/NOTES.md': 'n' } });
+      const into = path.join(dir, 'out');
+      copyFiles(['README.md', "'*.md' > doc/".replace(/'/g, '')], { into, lookIn: [path.join(dir, 'a')] });
+
+      expect(fs.existsSync(path.join(into, 'README.md'))).toBe(true);
+      expect(fs.existsSync(path.join(into, 'doc', 'NOTES.md'))).toBe(true);
+    });
+
     /** Several sources with a file destination is a mistake, not five files racing for one path. */
     it('refuses a multi-source entry whose destination is a single file', async () => {
       const dir = fixtureDir({

@@ -252,6 +252,22 @@ tree, copy the directory: `{ from: 'src/templates', to: 'templates' }`.
 with `bad indentation of a mapping entry` - the same rule that makes `"[*]"` selectors need quotes.
 Every form that does not start with `*` is fine unquoted.
 
+### `copyFiles` is also exported
+
+The same list syntax, usable from a repository's own `.rmanrc` without this config's build hook:
+
+```js
+import { copyFiles } from '@panates/rman-preset';
+
+copyFiles(['docs > doc/', { from: 'assets', to: 'assets' }], {
+  into: path.join(pkg.dirname, 'build'),
+  lookIn: [pkg.dirname, repository.dirname],
+});
+```
+
+`into` is where things land; `lookIn` is where sources are resolved from, in order, and defaults to
+the current working directory.
+
 ## Notes
 
 - **No `compile` script.** `tsc --noEmit` cannot run against a project that other projects
