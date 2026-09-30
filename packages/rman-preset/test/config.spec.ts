@@ -529,7 +529,7 @@ describe('@panates/rman-preset: the config a repository inherits', () => {
   describe('commands', () => {
     it('contributes check, format and lint, with no .rman directory needed', async () => {
       const repo = await repositoryFor();
-      expect(declaredCommandNames(repo)).toEqual(expect.arrayContaining(['check', 'format', 'lint']));
+      expect(declaredCommandNames(repo)).toEqual(expect.arrayContaining(['check', 'format', 'lint', 'test']));
     });
 
     /**
@@ -555,7 +555,74 @@ describe('@panates/rman-preset: the config a repository inherits', () => {
      */
     it('appends to the commands it inherits rather than replacing them', async () => {
       const repo = await repositoryFor();
-      expect(declaredCommandNames(repo)).toEqual(['ci', 'clean', 'check', 'format', 'lint']);
+      expect(declaredCommandNames(repo)).toEqual(['ci', 'clean', 'check', 'format', 'lint', 'test']);
+    });
+
+    /**
+     * **`test` takes rman's own `test`, and that is the point of it.**
+     *
+     * rman's built-in is an alias for `run test`, which fans the script out over the packages.
+     * Measured across seven repositories of this organization: not one has a package with its own
+     * `test` script, because testing here is a single run at the repository root - so `rman test`
+     * answered `No package defines a "test" script.` and everyone typed `npm test` instead.
+     *
+     * Taking the name used to throw ("would shadow rman's built-in"), which is the wall `lint` hit
+     * before it stopped being an alias. rman 2.3 made `build` and `test` shadowable: they are the
+     * two built-ins that carry no logic of their own.
+     *
+     * **One row in `--help`, not two.** Both were registered until rman skipped a shadowed
+     * built-in, and a name listed twice with two descriptions says nothing about which runs.
+     */
+    it('takes the built-in test alias, and leaves one row in --help', async () => {
+      const repo = await repositoryFor();
+      const { stdout } = await runRman(repo.dirname, '--help');
+
+      const rows = stdout.split('\n').filter((l) => /^\s+rman test\b/.test(l));
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toContain('package you are in');
+    });
+
+    /**
+     * **The package you are standing in, not every package** - the one command here that works that
+     * way, and deliberately: a cycle and a lint rule are repository-wide facts, a test run is the
+     * thing you narrow while working. At the root that is the repository's own script.
+     *
+     * Asserted through the error rather than by running a suite: the fixture's packages have no
+     * test runner, and what the case is about is *which manifest was consulted*, which the message
+     * names. `rman run test` is offered in it, because that is the behaviour being replaced.
+     */
+    it('reads the script from the package you are in, and says which when there is none', async () => {
+      const repo = await repositoryFor();
+      const { stderr } = await runRman(repo.dirname, 'test').catch((e: { stderr: string }) => e);
+      expect(stderr).toContain('has no "test" script');
+      /** The root's name, not a package's - `currentPackage` is undefined there. */
+      expect(stderr).toContain(repo.name!);
+      expect(stderr).toContain('rman run test');
+    });
+
+    /** Standing inside a package names *that* package, which is the half that proves it is not
+     *  reading the root's manifest and calling it the answer. */
+    it('names the package when run from inside one', async () => {
+      const repo = await repositoryFor();
+      const pkg = repo.getPackage('pkg-a')!;
+      /** **The CLI from the repository root, the cwd from the package.** `runRman` derives the cli
+       *  path from its `cwd`, and a workspace member has no `node_modules/rman` of its own - the
+       *  first draft of this case failed with `Cannot find module .../packages/pkg-a/node_modules/
+       *  rman/cli.js`, which is the fixture's shape rather than anything about the command. */
+      const cli = path.join(repo.dirname, 'node_modules', 'rman', 'cli.js');
+      const { stderr } = await promisify(execFile)(process.execPath, [cli, 'test'], {
+        cwd: pkg.dirname,
+      }).catch((e: { stderr: string }) => e);
+
+      expect(stderr).toContain('"pkg-a" has no "test" script');
+    });
+
+    /** `--script` is how the coverage run is reached, since `citest` is the name this organization
+     *  gives it - and the message has to name the script that was actually looked for. */
+    it('looks for the script --script names', async () => {
+      const repo = await repositoryFor();
+      const { stderr } = await runRman(repo.dirname, 'test', '--script', 'citest').catch((e: { stderr: string }) => e);
+      expect(stderr).toContain('has no "citest" script');
     });
 
     /**

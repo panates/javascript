@@ -3,6 +3,7 @@ import path from 'path';
 import checkCommand from './commands/check.js';
 import formatCommand from './commands/format.js';
 import lintCommand from './commands/lint.js';
+import testCommand from './commands/test.js';
 import { copyFiles } from './copy-files.js';
 import { stampFiles } from './stamp-files.js';
 
@@ -15,7 +16,10 @@ export default {
   },
 
   '[platform:node]': {
-    commands: [checkCommand, formatCommand, lintCommand],
+    /* `testCommand` shadows rman's built-in `test` alias, which is an alias for `run test` and
+     * carries no logic of its own - rman 2.3 made the two run aliases shadowable for exactly this.
+     * `rman run test` still fans the script out, for a repository whose tests are per package. */
+    commands: [checkCommand, formatCommand, lintCommand, testCommand],
 
     vars: {
       coveragePath: '${{ path.join(repository.dirname, "coverage") }}',
