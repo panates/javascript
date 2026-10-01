@@ -58,7 +58,7 @@ export default {
       run: {
         build: {
           before: ['rman check', 'rman lint', 'rman clean'],
-          exec: buildWithTsc,
+          exec: buildWithTsc(),
           /* **`vars` is read off the package, not off the argument.** A function step is handed
            * exactly `pkg`, `repository`, `cwd`, `runBin` and `logger` - destructuring `vars` there
            * yields `undefined`, and the first `vars.readmeFile` throws. `pkg.config.vars` is the
@@ -91,22 +91,27 @@ export default {
             });
           },
         },
+        compile: {
+          exec: buildWithTsc('--no-emit'),
+        },
       },
     },
   },
 };
 
-async function buildWithTsc({ pkg, runBin }) {
-  const candidates = ['tsconfig-build.json', 'tsconfig.build.json', 'tsconfig.json'];
-  const tsconfig = candidates.map((name) => path.join(pkg.dirname, name)).find(fs.existsSync);
-  if (!tsconfig) {
-    throw new Error(
-      `${pkg.name} has none of ${candidates.join(', ')} - there is nothing for "tsc -b" to ` +
-        `build. Add one, or keep this package out of the build with .rmanrc ` +
-        `"[${pkg.name}]": { run: { build: { skip: true } } }.`,
-    );
-  }
-  await runBin('tsc', ['-b', tsconfig]);
+function buildWithTsc(...args) {
+  return async function ({ pkg, runBin }) {
+    const candidates = ['tsconfig-build.json', 'tsconfig.build.json', 'tsconfig.json'];
+    const tsconfig = candidates.map((name) => path.join(pkg.dirname, name)).find(fs.existsSync);
+    if (!tsconfig) {
+      throw new Error(
+        `${pkg.name} has none of ${candidates.join(', ')} - there is nothing for "tsc -b" to ` +
+          `build. Add one, or keep this package out of the build with .rmanrc ` +
+          `"[${pkg.name}]": { run: { build: { skip: true } } }.`,
+      );
+    }
+    await runBin('tsc', ['-b', tsconfig, ...args]);
+  };
 }
 
 /** The only lifecycle scripts a consumer's `npm install` runs, so the only ones worth keeping in a
