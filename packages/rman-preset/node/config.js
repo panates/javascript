@@ -92,7 +92,7 @@ export default {
           },
         },
         compile: {
-          exec: buildWithTsc('--no-emit'),
+          exec: buildWithTsc('--noemit'),
         },
       },
     },
