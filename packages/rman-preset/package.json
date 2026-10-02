@@ -22,7 +22,7 @@
     "dpdm": ">=4",
     "eslint": ">=9",
     "prettier": ">=3",
-    "rman": ">=2.3.0"
+    "rman": ">=2.9.0"
   },
   "scripts": {
     "format": "prettier . --write --log-level=warn",

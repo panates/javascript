@@ -3,12 +3,11 @@ import path from 'node:path';
 import {
   filterPackages,
   fromRootOption,
-  Logger,
   packageFilterOptions,
+  parallelOptions,
   readFromRootOption,
   readPackageFilterOptions,
-  resolveRootLogLevel,
-  runBin,
+  readParallelOptions,
 } from 'rman';
 
 /** dpdm's flags, as defaults so no repository has to restate them.
@@ -42,6 +41,12 @@ const COMMAND = 'check';
 const config = {
   ...packageFilterOptions,
   ...fromRootOption('Check'),
+  ...parallelOptions,
+  concurrency: {
+    target: 'config',
+    describe: 'How many packages dpdm runs in at once when --parallel is not given.',
+    type: 'number',
+  },
   entry: {
     target: 'cli',
     alias: 'e',
@@ -55,12 +60,6 @@ const config = {
     describe: 'Only packages with uncommitted or unpushed changes',
     type: 'boolean',
   },
-  bail: {
-    target: 'cli',
-    describe: 'Stop at the first package with a cycle. Default true.',
-    type: 'boolean',
-    default: true,
-  },
 };
 
 /**
@@ -72,11 +71,15 @@ const config = {
  * the package filter, because both mean something here.
  *
  * dpdm is run directly rather than through a `check` script, so nothing has to appear in `.rmanrc`
- * for this to work - the command owns its tool, the way `format` owns prettier. Note what that
- * trades away: the packages are checked in sequence here, without `run`'s concurrency, topological
- * order or progress panel. dpdm is fast and its packages are independent, so sequence is the honest
- * shape for it - but a heavier per-package tool belongs in `run.<script>`, where that machinery
- * already exists.
+ * for this to work - the command owns its tool, the way `format` owns prettier.
+ *
+ * **The packages are scheduled by rman, not by a loop here** (`context.forEachPackage`), so
+ * `--parallel`, `--bail` and the progress panel all work and none of them is implemented twice.
+ * This used to be `for (const pkg of ...) await runBin(...)`, and the comment that justified it -
+ * "dpdm is fast, so sequence is the honest shape" - was wrong by a factor of the package count:
+ * measured on `panates/opra`, nineteen packages at 0.4-0.9s each, eleven seconds of wall clock for
+ * work with no dependencies between any of it. Ordering stays off (the default) for exactly that
+ * reason: dpdm reads a package's own sources, so nothing here waits for anything.
  *
  * **Declared, not built** - see [`format.js`](./format.js) for the shape.
  *
@@ -97,9 +100,12 @@ export default (app) => {
       { command: '$0 check --no-bail', description: '# Report every package, not just the first bad one' },
       { command: '$0 check -e ./src/main.ts', description: '# A package that enters somewhere else' },
     ],
-    /** @param {import('rman').ArgsOf<typeof config, typeof COMMAND>} args */
-    handler: async (args) => {
-      const logger = new Logger(args.logLevel ?? resolveRootLogLevel(repository));
+    /**
+     * @param {import('rman').ArgsOf<typeof config, typeof COMMAND>} args
+     * @param {import('rman').CommandContext} context
+     */
+    handler: async (args, context) => {
+      const logger = context.logger;
 
       /**
        * Read once rather than at each of the three uses.
@@ -141,54 +147,51 @@ export default (app) => {
         return;
       }
 
-      const failed = [];
-      let succeeded = 0;
-      for (const pkg of checkable) {
-        logger.info(`check ${pkg.name}`);
-        try {
-          await runBin('dpdm', [...DPDM_FLAGS, entry], {
-            cwd: pkg.dirname,
-            app: repository.app,
-            logLevel: args.logLevel,
-          });
-          succeeded++;
-        } catch (e) {
-          /**
-           * **Only dpdm's own verdict counts as a cycle.** It exits 1 for one (that is what
-           * `--exit-code circular:1` buys), so anything else - dpdm not installed, a bad `--entry`,
-           * a crash - is a different failure and is re-thrown under its own name. Reported as a
-           * cycle it sent the reader looking for an import loop that was not there: measured, a
-           * repository without dpdm answered `Circular dependencies in pkg-a`.
-           *
-           * `code` is the child's exit status, which `runBin` puts on the rejection; a binary it
-           * could not spawn at all rejects with a plain `Error` that has none, so `!== 1` catches
-           * that too.
-           */
-          if (/** @type {{ code?: number } | undefined} */ (e)?.code !== 1) throw e;
-          failed.push(pkg.name);
-          /** `runBin` already printed dpdm's own output, which names the cycle - repeating the
-           *  error here would only bury it. */
-          if (args.bail) break;
-        }
-      }
+      /**
+       * **rman schedules this, not a loop here** - so `--parallel`, `--bail` and the progress panel
+       * come from the one implementation of them. What went with the loop: a hand-rolled tally
+       * (whose `notRun` arithmetic reported packages a bail had skipped as successes until it was
+       * fixed here separately), a `logger.info` per package, and the summary line - all of which the
+       * panel's own recap already prints, per package and with the failing output replayed.
+       */
+      await context.forEachPackage(
+        checkable,
+        async ({ pkg, runBin }) => {
+          try {
+            await runBin('dpdm', [...DPDM_FLAGS, entry]);
+          } catch (e) {
+            /**
+             * **Only dpdm's own verdict counts as a cycle.** It exits 1 for one (that is what
+             * `--exit-code circular:1` buys), so anything else - dpdm not installed, a bad
+             * `--entry`, a crash - is a different failure and is re-thrown under its own name.
+             * Reported as a cycle it sent the reader looking for an import loop that was not there:
+             * measured, a repository without dpdm answered `Circular dependencies in pkg-a`.
+             *
+             * `code` is the child's exit status, which `runBin` puts on the rejection; a binary it
+             * could not spawn at all rejects with a plain `Error` that has none, so `!== 1` catches
+             * that too.
+             */
+            if (/** @type {{ code?: number } | undefined} */ (e)?.code !== 1) throw e;
+            /** Thrown rather than collected: the scheduler is what counts failures now, and dpdm's
+             *  own output - which names the cycle - is already in this package's row and replayed
+             *  at the end. A message of our own here would only bury it. */
+            throw loggedError(`circular dependency in ${pkg.name}`);
+          }
+        },
+        {
+          label: COMMAND,
+          ...readParallelOptions(args),
+          /** The flag wins, and `check.concurrency` is the standing answer when it is not given -
+           *  the command's own key, read off the root, because there is one scheduler and one answer
+           *  for the whole batch. Not `run.check`: `check` is a command, not a script. */
+          parallel: readParallelOptions(args).parallel ?? repository.rootPackage.config.check?.concurrency,
+          logLevel: args.logLevel,
+        },
+      );
 
-      /** Counted, not derived from the totals: with `--bail` the packages after the failure were
-       *  never run, and `checkable.length - failed.length` reported them as having succeeded
-       *  (measured - "1 succeeded, 1 failed" when only one package had actually been checked). */
-      const notRun = checkable.length - succeeded - failed.length;
-      const summary =
-        `${succeeded} succeeded, ${failed.length} failed` +
-        (notRun ? `, ${notRun} not checked` : '') +
-        (skipped ? `, ${skipped} skipped (no ${entry})` : '');
-      logger.info(summary);
-
-      if (failed.length) {
-        const message = `Circular dependencies in ${failed.join(', ')}`;
-        console.error(message);
-        /** Marked logged so rman prints it once, and thrown so the exit code agrees with the summary
-         *  above - a check that reports a failure and exits 0 is worse than no check. */
-        throw loggedError(message);
-      }
+      /** The one count the panel cannot know: a package with no entry file was never handed to the
+       *  scheduler at all, and "every package was skipped" must not read as a clean check. */
+      if (skipped) logger.info(`${skipped} skipped (no ${entry})`);
     },
   };
 };

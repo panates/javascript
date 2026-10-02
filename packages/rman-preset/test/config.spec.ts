@@ -3,8 +3,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import { expect } from 'expect';
-import type { CommandEntry, RmanConfig, RunStepContext, RunStepFn } from 'rman';
-import { Repository } from 'rman';
+import type { CommandEntry, RmanConfig, RunStepContext, RunStepFn, RunStepObject } from 'rman';
+import { Repository, runOptions } from 'rman';
 import { cleanupFixtures, fixtureDir, repositoryFor } from './_fixture.js';
 
 /**
@@ -17,6 +17,46 @@ import { cleanupFixtures, fixtureDir, repositoryFor } from './_fixture.js';
  */
 function buildScript(repo: Repository, name = 'pkg-a'): RmanConfig.RunScriptOptions {
   return repo.getPackage(name)?.config.run?.build as RmanConfig.RunScriptOptions;
+}
+
+/**
+ * The steps a slot holds, with the object form unwrapped.
+ *
+ * A slot is a shell command, a function, a `{ topo, command }` object, or a list of any of those -
+ * the same reduction rman's own `toStep` makes before running one. **The spelling is the subject of
+ * exactly one case here** (the `topo` one below); every other case is about what a step *does*, and
+ * reading `.command` at each of them would be eight copies of a fact that belongs in one place.
+ *
+ * It was eight direct casts, and the config moving to the object form turned all eight into
+ * `after is not a function` - a failure about the shape, in cases about copying files.
+ */
+function stepsOf(value: unknown): (string | RunStepFn)[] {
+  const items = Array.isArray(value) ? value : [value];
+  return items
+    .filter(item => item !== undefined && item !== null && item !== '')
+    .map(item =>
+      typeof item === 'object' ? ((item as RunStepObject).command as string | RunStepFn) : (item as string | RunStepFn),
+    );
+}
+
+/**
+ * The one function step a slot holds, refusing anything else.
+ *
+ * A slot that turned out to hold a *string* would otherwise be called as a function, and the
+ * TypeError would name the test's own line rather than the config's mistake.
+ */
+function stepFn(value: unknown): RunStepFn {
+  const steps = stepsOf(value);
+  if (steps.length !== 1 || typeof steps[0] !== 'function') {
+    throw new Error(`expected one function step, got ${steps.length} (${steps.map(s => typeof s).join(', ')})`);
+  }
+  return steps[0];
+}
+
+/** The build's `after` hook, typed for the partial context these cases hand it - it reads `pkg` and
+ *  `repository` and nothing else. */
+function afterHook(repo: Repository, name = 'pkg-a'): (ctx: { pkg: unknown; repository: unknown }) => void {
+  return stepFn(buildScript(repo, name).after) as unknown as (ctx: { pkg: unknown; repository: unknown }) => void;
 }
 
 /**
@@ -43,6 +83,16 @@ function commandEntries(repo: Repository): CommandEntry[] {
  * which is rman's job to import and not a spec's to re-implement. This config declares none - see
  * the last case in the `commands` suite, which is what pins that.
  */
+/** One declared command's metadata, by name - the factory called the way `cli.ts` calls it. */
+function declaredCommand(repo: Repository, name: string): any {
+  const found = commandEntries(repo)
+    .filter((entry): entry is Exclude<CommandEntry, string> => typeof entry !== 'string')
+    .map((entry) => (typeof entry === 'function' ? entry(repo.app) : entry))
+    .find((meta) => meta.command!.split(/\s+/)[0] === name);
+  if (!found) throw new Error(`No declared command named "${name}"`);
+  return found;
+}
+
 function declaredCommandNames(repo: Repository): string[] {
   return commandEntries(repo)
     .filter((entry): entry is Exclude<CommandEntry, string> => typeof entry !== 'string')
@@ -254,6 +304,12 @@ describe('@panates/rman-preset: the config a repository inherits', () => {
      *  have been given is what the specs read. A real `tsc -b` would need a compiler in the
      *  fixture and would test TypeScript rather than this config. */
     async function tscArgv(repo: Repository, name = 'pkg-a'): Promise<string[]> {
+      return tscArgvOf(repo, stepFn(buildScript(repo, name).exec), name);
+    }
+
+    /** The same recording harness for any step, so the `compile` case below reuses it rather than
+     *  carrying a second copy of the fake context. */
+    async function tscArgvOf(repo: Repository, step: RunStepFn, name = 'pkg-a'): Promise<string[]> {
       const calls: string[][] = [];
       const pkg = repo.getPackage(name)!;
       const ctx = {
@@ -268,7 +324,7 @@ describe('@panates/rman-preset: the config a repository inherits', () => {
          *  `Logger` here would only be a second thing to keep in step with rman. */
         logger: undefined,
       } as unknown as RunStepContext;
-      await (buildScript(repo).exec as RunStepFn)(ctx);
+      await step(ctx);
       return calls[0];
     }
 
@@ -295,7 +351,7 @@ describe('@panates/rman-preset: the config a repository inherits', () => {
       const pkg = repo.getPackage('pkg-a')!;
       expect(pkg.config.publish?.npm?.directory).toBe('dist');
 
-      const after = buildScript(repo).after as (ctx: { pkg: unknown; repository: unknown }) => void;
+      const after = afterHook(repo);
       after({ pkg, repository: repo });
 
       expect(fs.existsSync(path.join(pkg.dirname, 'dist', 'README.md'))).toBe(true);
@@ -345,7 +401,7 @@ describe('@panates/rman-preset: the config a repository inherits', () => {
       const repo = await Repository.create(dir);
       const pkg = repo.getPackage('pkg-a')!;
 
-      const after = buildScript(repo).after as (ctx: { pkg: unknown; repository: unknown }) => void;
+      const after = afterHook(repo);
       after({ pkg, repository: repo });
 
       const at = (...p: string[]) => fs.existsSync(path.join(pkg.dirname, 'build', ...p));
@@ -404,7 +460,7 @@ describe('@panates/rman-preset: the config a repository inherits', () => {
       const repo = await Repository.create(dir);
       const pkg = repo.getPackage('pkg-a')!;
 
-      const after = buildScript(repo).after as (ctx: { pkg: unknown; repository: unknown }) => void;
+      const after = afterHook(repo);
       after({ pkg, repository: repo });
 
       const written = fs.readFileSync(path.join(pkg.dirname, 'build', 'constants.js'), 'utf-8');
@@ -433,7 +489,7 @@ describe('@panates/rman-preset: the config a repository inherits', () => {
       for (const name of ['pkg-a', 'pkg-b']) {
         const pkg = repo.getPackage(name);
         if (!pkg) continue;
-        const after = buildScript(repo, name).after as (ctx: { pkg: unknown; repository: unknown }) => void;
+        const after = afterHook(repo, name);
         expect(() => after({ pkg, repository: repo })).not.toThrow();
       }
       const untouched = path.join(dir, 'packages/pkg-b/build/constants.js');
@@ -470,7 +526,7 @@ describe('@panates/rman-preset: the config a repository inherits', () => {
       const repo = await Repository.create(dir);
       const pkg = repo.getPackage('pkg-a')!;
 
-      const after = buildScript(repo).after as (ctx: { pkg: unknown; repository: unknown }) => void;
+      const after = afterHook(repo);
       expect(() => after({ pkg, repository: repo })).toThrow(/destination is a single file/);
     });
 
@@ -482,7 +538,7 @@ describe('@panates/rman-preset: the config a repository inherits', () => {
       const repo = await Repository.create(dir);
       const pkg = repo.getPackage('pkg-a')!;
 
-      const after = buildScript(repo).after as (ctx: { pkg: unknown; repository: unknown }) => void;
+      const after = afterHook(repo);
       after({ pkg, repository: repo });
 
       const written = path.join(pkg.dirname, 'build', 'package.json');
@@ -507,9 +563,74 @@ describe('@panates/rman-preset: the config a repository inherits', () => {
      */
     it('names the commands this package contributes, so a bare `extends` builds', async () => {
       const repo = await repositoryFor();
-      const before = buildScript(repo).before as string[];
+      const before = stepsOf(buildScript(repo).before);
       expect(before).toEqual(expect.arrayContaining(['rman check', 'rman lint']));
     });
+
+    /**
+     * **`tsc` waits for the dependencies; nothing before it does.** This is the one case here about
+     * the *shape* of a step rather than what it does, and it has to exist: every other case reads
+     * through `stepsOf`, which unwraps the object form and would be just as happy with the markers
+     * deleted.
+     *
+     * Deleted, the build is wrong in a way that does not look like a config mistake. `tsc -b` runs
+     * in every package at once, the ones whose dependencies are not compiled yet fail with
+     * `Cannot find module '@scope/...'`, and the reader goes looking at imports. Measured on
+     * `panates/opra`, where a dependency cycle produced the same collapse: sixteen of twenty
+     * packages started inside the same tenth of a second.
+     *
+     * The mirror half is just as deliberate: `rman check`/`lint`/`clean` have no reason to wait for
+     * anything, and under one blanket `topo` they waited for the whole dependency chain before the
+     * first one could start.
+     */
+    it('waits for the dependencies at tsc, and not before it', async () => {
+      const repo = await repositoryFor();
+      const build = buildScript(repo);
+      const topoOf = (value: unknown) =>
+        (Array.isArray(value) ? value : [value]).map(item => (item as RunStepObject | undefined)?.topo);
+
+      expect(topoOf(build.exec)).toEqual([true]);
+      /** Every pre-step says so explicitly, which is what makes the line above the *first* `true`
+       *  rather than merely a true one - rman reads the first as the barrier. */
+      expect(topoOf(build.before)).toEqual([false, false, false]);
+      expect(topoOf(build.after)).toEqual([false]);
+    });
+
+    /**
+     * **`compile` is plain `tsc`, and each of the three things it is not was measured wrong.**
+     *
+     * `tsc -b --noEmit` cannot run at all: in build mode `--noEmit` applies to the whole graph and
+     * TypeScript refuses it for a project something else references - `error TS6310: Referenced
+     * project '...' may not disable emit` on every package with a `references` entry, which is to
+     * say every package a project-references monorepo has, the shape this preset is for.
+     *
+     * `--noEmit` on its own cannot see its siblings: a `references` entry resolves to the referenced
+     * project's declaration **output**, so on an unbuilt `panates/opra` it produced 46 `TS6305` and
+     * 88 `TS2307` cascading from them, not one of which is a type error anybody can act on.
+     * Emitting is what gives the next package something to read.
+     *
+     * `tsconfig-build.json` is `build`'s, written for a publishable artifact and resolving a sibling
+     * through its output; the package's own `tsconfig.json` maps the same sibling through `paths`
+     * and is what the editor reads, so `rman compile` answers the question the editor already does.
+     *
+     * Asserted on the argv, because all three mistakes are one or two characters there.
+     */
+    it('compiles with plain tsc - no -b, no --noEmit, no build config', async () => {
+      const repo = await repositoryFor();
+      const compile = repo.getPackage('pkg-a')?.config.run?.compile as RmanConfig.RunScriptOptions;
+      const argv = await tscArgvOf(repo, stepFn(compile.exec));
+
+      /** `--noEmitOnError` and nothing else: the emit is a side effect of `references` resolving to
+       *  declaration output, not the point of the command, so a package with type errors must not
+       *  leave half a build in the directory `publish` ships from. */
+      expect(argv).toEqual(['tsc', '--noEmitOnError']);
+      /** It emits, so a dependent reading its declarations has to wait - the one reason this is
+       *  ordered where `check`, which reads only a package's own sources, is not. */
+      expect((Array.isArray(compile.exec) ? compile.exec : [compile.exec]).map(s => (s as RunStepObject).topo)).toEqual(
+        [true],
+      );
+    });
+
   });
 
   /**
@@ -545,8 +666,8 @@ describe('@panates/rman-preset: the config a repository inherits', () => {
     /**
      * **rman's own `ci` and `clean` survive ours**, because `commands` appends across layers -
      * including the presets rman lays under every repository root, which is where those two come
-     * from in 2.x (they were `rman-node`'s while that was a separate package). Five entries, not
-     * three.
+     * from in 2.x (they were `rman-node`'s while that was a separate package). Seven entries, not
+     * five.
      *
      * Worth its own case because the count is the part that looks wrong. Replacement was the
      * silent failure the append rule exists to prevent: a config adding a command of its own would
@@ -555,7 +676,32 @@ describe('@panates/rman-preset: the config a repository inherits', () => {
      */
     it('appends to the commands it inherits rather than replacing them', async () => {
       const repo = await repositoryFor();
-      expect(declaredCommandNames(repo)).toEqual(['ci', 'clean', 'check', 'format', 'lint', 'test']);
+      expect(declaredCommandNames(repo)).toEqual(['ci', 'clean', 'check', 'compile', 'format', 'lint', 'test']);
+    });
+
+    /**
+     * **`compile` is an alias for `run compile` and owns nothing of its own.**
+     *
+     * The flags are the part worth pinning. `--parallel`, `--bail`, `--topo`, `--changed` and the
+     * package filters are what make `run` usable, and an alias supporting fewer of them than the
+     * command it stands for is a trap: the flag works on `rman run compile`, does nothing on
+     * `rman compile`, and nothing reports the difference. Taking rman's own `runOptions` is what
+     * keeps the two in step; restating them here would be two lists free to drift.
+     */
+    it('carries the whole run option group rather than a copy of part of it', async () => {
+      const repo = await repositoryFor();
+      const compile = declaredCommand(repo, 'compile');
+
+      expect(Object.keys(compile.config ?? {})).toEqual(Object.keys(runOptions));
+    });
+
+    /** Its settings are `run.compile`, which belongs to `run` - the same reason rman's own `build`
+     *  declares the key it reads and contributes none. */
+    it('reads run.compile and contributes no config key of its own', async () => {
+      const repo = await repositoryFor();
+      const compile = declaredCommand(repo, 'compile');
+
+      expect(compile.configKeys).toEqual(['run.compile']);
     });
 
     /**
