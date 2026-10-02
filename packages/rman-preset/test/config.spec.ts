@@ -33,8 +33,8 @@ function buildScript(repo: Repository, name = 'pkg-a'): RmanConfig.RunScriptOpti
 function stepsOf(value: unknown): (string | RunStepFn)[] {
   const items = Array.isArray(value) ? value : [value];
   return items
-    .filter(item => item !== undefined && item !== null && item !== '')
-    .map(item =>
+    .filter((item) => item !== undefined && item !== null && item !== '')
+    .map((item) =>
       typeof item === 'object' ? ((item as RunStepObject).command as string | RunStepFn) : (item as string | RunStepFn),
     );
 }
@@ -48,7 +48,7 @@ function stepsOf(value: unknown): (string | RunStepFn)[] {
 function stepFn(value: unknown): RunStepFn {
   const steps = stepsOf(value);
   if (steps.length !== 1 || typeof steps[0] !== 'function') {
-    throw new Error(`expected one function step, got ${steps.length} (${steps.map(s => typeof s).join(', ')})`);
+    throw new Error(`expected one function step, got ${steps.length} (${steps.map((s) => typeof s).join(', ')})`);
   }
   return steps[0];
 }
@@ -587,7 +587,7 @@ describe('@panates/rman-preset: the config a repository inherits', () => {
       const repo = await repositoryFor();
       const build = buildScript(repo);
       const topoOf = (value: unknown) =>
-        (Array.isArray(value) ? value : [value]).map(item => (item as RunStepObject | undefined)?.topo);
+        (Array.isArray(value) ? value : [value]).map((item) => (item as RunStepObject | undefined)?.topo);
 
       expect(topoOf(build.exec)).toEqual([true]);
       /** Every pre-step says so explicitly, which is what makes the line above the *first* `true`
@@ -626,11 +626,10 @@ describe('@panates/rman-preset: the config a repository inherits', () => {
       expect(argv).toEqual(['tsc', '--noEmitOnError']);
       /** It emits, so a dependent reading its declarations has to wait - the one reason this is
        *  ordered where `check`, which reads only a package's own sources, is not. */
-      expect((Array.isArray(compile.exec) ? compile.exec : [compile.exec]).map(s => (s as RunStepObject).topo)).toEqual(
-        [true],
-      );
+      expect(
+        (Array.isArray(compile.exec) ? compile.exec : [compile.exec]).map((s) => (s as RunStepObject).topo),
+      ).toEqual([true]);
     });
-
   });
 
   /**
