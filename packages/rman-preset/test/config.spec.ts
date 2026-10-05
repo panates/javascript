@@ -556,6 +556,44 @@ describe('@panates/rman-preset: the config a repository inherits', () => {
     });
 
     /**
+     * **`private` leaves the build manifest only with a `publishConfig`**, because `rman publish`
+     * decides from this file: `private` on a package set up to publish is a guard on its source
+     * tree, `private` alone means it. The pair is each other's control.
+     */
+    it('drops `private` from the build manifest when the package declares a publishConfig', async () => {
+      const dir = fixtureDir({
+        files: {
+          'packages/pkg-a/package.json': JSON.stringify({
+            name: 'pkg-a',
+            version: '1.0.0',
+            private: true,
+            publishConfig: { access: 'public' },
+          }),
+          'packages/pkg-a/build/.keep': '',
+        },
+      });
+      const repo = await Repository.create(dir);
+      const pkg = repo.getPackage('pkg-a')!;
+      afterHook(repo)({ pkg, repository: repo });
+      const json = JSON.parse(fs.readFileSync(path.join(pkg.dirname, 'build', 'package.json'), 'utf-8'));
+      expect(json.private).toBeUndefined();
+    });
+
+    it('keeps `private` in the build manifest when the package declares no publishConfig', async () => {
+      const dir = fixtureDir({
+        files: {
+          'packages/pkg-a/package.json': JSON.stringify({ name: 'pkg-a', version: '1.0.0', private: true }),
+          'packages/pkg-a/build/.keep': '',
+        },
+      });
+      const repo = await Repository.create(dir);
+      const pkg = repo.getPackage('pkg-a')!;
+      afterHook(repo)({ pkg, repository: repo });
+      const json = JSON.parse(fs.readFileSync(path.join(pkg.dirname, 'build', 'package.json'), 'utf-8'));
+      expect(json.private).toBe(true);
+    });
+
+    /**
      * The hook names `rman check` and `rman lint`, which is only safe because this package now
      * *contributes* them - see the `commands` suite below. It used to ship them and leave the
      * repository to install each as a `.rman/<name>.mjs` re-export, so a repository that wrote

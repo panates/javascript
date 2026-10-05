@@ -199,14 +199,16 @@ const CONSUMER_SCRIPTS = new Set(['preinstall', 'install', 'postinstall']);
 
 /**
  * Writes the package's manifest into the build directory, stripped of everything a consumer has no
- * use for: `devDependencies`, `private`, `publishConfig.directory`, and every script except the
- * three install hooks.
+ * use for: `devDependencies`, `publishConfig.directory`, every script except the three install
+ * hooks - and `private`, **only when the package declares a `publishConfig`**.
  *
- * **This never decides what is published.** `rman publish` derives its own manifest into the same
- * file at publish time, and its `preparePublishManifest` reads whatever is already there first and
- * writes it back afterwards - so this copy is overwritten for the duration of the publish and
- * restored when it ends. The rules here mirror rman's `derivePublishManifest` so the two agree, but
- * if they ever drift, rman's is the one that ships.
+ * **This is the manifest `rman publish` decides from** (rman >= 2.11.1): whether a package is
+ * private is read here, not from its source. A package set up to be published (`publishConfig`)
+ * that is also `private` is guarding its source tree against a stray `npm publish`, so the flag is
+ * dropped and the package publishes; one with no `publishConfig` means it, keeps the flag, and is
+ * skipped. At publish time rman writes its own derived manifest over this one and restores it
+ * afterwards - the two apply the same rules, and must go on doing so, or the plan and the artifact
+ * disagree about `private`.
  *
  * What it is for is the build directory being a complete package on its own: `node build/index.js`
  * needs a `package.json` beside it to pick up `"type": "module"`, and anything inspecting what a
@@ -220,7 +222,7 @@ function writeBuildManifest(pkg, buildDir) {
   const json = structuredClone(pkg.manifest.raw);
 
   delete json.devDependencies;
-  delete json.private;
+  if (json.publishConfig) delete json.private;
 
   if (json.scripts) {
     const kept = Object.fromEntries(Object.entries(json.scripts).filter(([name]) => CONSUMER_SCRIPTS.has(name)));
