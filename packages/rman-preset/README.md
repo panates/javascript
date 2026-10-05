@@ -115,12 +115,20 @@ rman check --no-bail        # report every package, not just the first bad one
 rman check -e ./src/main.ts # a package that enters somewhere else
 ```
 
-The flag that matters is `--exit-code circular:1`, which is on by default: without it dpdm _reports_
-a cycle and still exits 0, so a CI step would pass on a repository that has one.
+A package fails on either of two things:
 
-Packages are checked in sequence, without `run`'s concurrency or progress panel - dpdm is fast and
-the packages are independent. A package with no entry file is skipped and counted; every package
-lacking one is an error rather than a pass, since that means a wrong `--entry`.
+- **a circular dependency**, printed as the files it runs through;
+- **an import dpdm cannot resolve** - because dpdm cannot follow it, a cycle running through it is
+  invisible, and the package would otherwise pass having been checked only in part. The usual cause
+  is a missing or broken `tsconfig.json`: without one, `./b.js` does not map to `b.ts`. Two kinds are
+  not counted: a runtime's own module (`bun:sqlite`, as `node:fs` is), and a dynamic `import()`,
+  which is how something optional is loaded.
+
+dpdm runs through its API, in one process per package, so packages are checked in parallel under
+rman's own scheduler - `--parallel`, `--bail` and the progress panel all apply, and `check.concurrency`
+in the root's `.rmanrc` is the standing answer when `--parallel` is not given. A package with no
+entry file is skipped and counted; every package lacking one is an error rather than a pass, since
+that means a wrong `--entry`.
 
 `format` and `lint` are the opposite case: they run **once, at the repository root**, and take paths
 to narrow them:

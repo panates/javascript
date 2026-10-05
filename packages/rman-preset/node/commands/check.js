@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
   filterPackages,
   fromRootOption,
@@ -10,21 +11,8 @@ import {
   readParallelOptions,
 } from 'rman';
 
-/** dpdm's flags, as defaults so no repository has to restate them.
- *
- *  `circular --exit-code circular:1` is the load-bearing one: without it dpdm *reports* a cycle and
- *  still exits 0, so a CI step would pass on a repository that has one. The rest is noise control -
- *  `-T` takes paths from tsconfig, `--no-warning`/`--no-tree` drop the output that isn't the answer,
- *  and `--skip-dynamic-imports` keeps a lazy `import()` from counting as a cycle. */
-const DPDM_FLAGS = [
-  '-T',
-  '--no-warning',
-  '--no-tree',
-  '--skip-dynamic-imports',
-  'circular',
-  '--exit-code',
-  'circular:1',
-];
+/** The per-package worker, run as its own process - see the file for why. */
+const WORKER = fileURLToPath(new URL('./check-worker.js', import.meta.url));
 
 const DEFAULT_ENTRY = './src/index.ts';
 
@@ -63,7 +51,8 @@ const config = {
 };
 
 /**
- * `rman check` - dpdm's circular-dependency check, once per package.
+ * `rman check` - dpdm's circular-dependency check, once per package, **and an import that does not
+ * resolve fails it too**.
  *
  * Per package rather than once at the root because dpdm walks a single entry point: each package
  * has to be asked about its own. Standing inside a package checks only that one - and unlike
@@ -72,6 +61,13 @@ const config = {
  *
  * dpdm is run directly rather than through a `check` script, so nothing has to appear in `.rmanrc`
  * for this to work - the command owns its tool, the way `format` owns prettier.
+ *
+ * **Through dpdm's API, in a worker process per package** (`check-worker.js`), not dpdm's CLI. The
+ * CLI answered with an exit code - and only because `--exit-code circular:1` asked it to; without
+ * that a cycle exited 0 - and with `--no-warning` it also hid every import it could not resolve,
+ * which hides every cycle running through one: measured, a package whose tsconfig was missing had
+ * `./b.js` unresolved, a real `index.ts <-> b.ts` cycle went unseen, and dpdm congratulated it. The
+ * worker hands back the cycles and the unresolved imports as data, and draws no spinner of its own.
  *
  * **The packages are scheduled by rman, not by a loop here** (`context.forEachPackage`), so
  * `--parallel`, `--bail` and the progress panel all work and none of them is implemented twice.
@@ -156,27 +152,30 @@ export default (app) => {
        */
       await context.forEachPackage(
         checkable,
-        async ({ pkg, runBin }) => {
-          try {
-            await runBin('dpdm', [...DPDM_FLAGS, entry]);
-          } catch (e) {
-            /**
-             * **Only dpdm's own verdict counts as a cycle.** It exits 1 for one (that is what
-             * `--exit-code circular:1` buys), so anything else - dpdm not installed, a bad
-             * `--entry`, a crash - is a different failure and is re-thrown under its own name.
-             * Reported as a cycle it sent the reader looking for an import loop that was not there:
-             * measured, a repository without dpdm answered `Circular dependencies in pkg-a`.
-             *
-             * `code` is the child's exit status, which `runBin` puts on the rejection; a binary it
-             * could not spawn at all rejects with a plain `Error` that has none, so `!== 1` catches
-             * that too.
-             */
-            if (/** @type {{ code?: number } | undefined} */ (e)?.code !== 1) throw e;
-            /** Thrown rather than collected: the scheduler is what counts failures now, and dpdm's
-             *  own output - which names the cycle - is already in this package's row and replayed
-             *  at the end. A message of our own here would only bury it. */
-            throw loggedError(`circular dependency in ${pkg.name}`);
-          }
+        async ({ pkg, runBin, logger: stepLogger }) => {
+          /** The worker's stderr is the step's output - a missing dpdm says so there; its stdout is
+           *  the one JSON line, read off the result rather than printed. */
+          const { output } = await runBin('node', [WORKER, entry], {
+            onLine: (line, stream) => {
+              if (stream === 'stderr') console.error(line);
+            },
+          });
+          const line = output.split('\n').find((l) => l.startsWith('{"files"'));
+          if (!line) throw loggedError(`dpdm returned nothing for ${pkg.name}`);
+          /** @type {{ files: number, cycles: string[][], unresolved: { file: string, request: string }[] }} */
+          const result = JSON.parse(line);
+
+          for (const cycle of result.cycles) console.error(`circular dependency: ${cycle.join(' -> ')}`);
+          /** An import that does not resolve is an error of its own, not just a warning: dpdm cannot
+           *  follow it, so any cycle running through it is invisible - see the command's doc. */
+          for (const miss of result.unresolved) console.error(`unresolved import "${miss.request}" in ${miss.file}`);
+
+          const problems = [
+            result.cycles.length && plural(result.cycles.length, 'circular dependency', 'circular dependencies'),
+            result.unresolved.length && plural(result.unresolved.length, 'unresolved import', 'unresolved imports'),
+          ].filter(Boolean);
+          if (problems.length) throw loggedError(problems.join(', '));
+          stepLogger.info(`${plural(result.files, 'file', 'files')}, no circular dependency`);
         },
         {
           label: COMMAND,
@@ -208,4 +207,9 @@ function loggedError(message) {
   const error = /** @type {Error & { logged?: boolean }} */ (new Error(message));
   error.logged = true;
   return error;
+}
+
+/** `1 circular dependency`, `2 circular dependencies`. */
+function plural(count, one, many) {
+  return `${count} ${count === 1 ? one : many}`;
 }
