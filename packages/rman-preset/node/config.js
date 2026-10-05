@@ -58,6 +58,7 @@ export default {
 
       run: {
         build: {
+          topo: true,
           before: [
             {
               topo: false,
@@ -72,10 +73,7 @@ export default {
               command: 'rman clean',
             },
           ],
-          exec: {
-            topo: true,
-            command: buildWithTsc(),
-          },
+          exec: buildWithTsc(),
           /* **`vars` is read off the package, not off the argument.** A function step is handed
            * exactly `pkg`, `repository`, `cwd`, `runBin` and `logger` - destructuring `vars` there
            * yields `undefined`, and the first `vars.readmeFile` throws. `pkg.config.vars` is the
@@ -119,7 +117,8 @@ export default {
          * its siblings' emitted declarations, so each one must have compiled before the next starts.
          * See `compileWithTsc` for why that is plain `tsc` rather than `-b` or `--noEmit`. */
         compile: {
-          exec: { topo: true, command: compileWithTsc() },
+          topo: true,
+          exec: compileWithTsc(),
         },
       },
     },

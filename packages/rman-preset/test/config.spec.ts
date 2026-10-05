@@ -582,6 +582,12 @@ describe('@panates/rman-preset: the config a repository inherits', () => {
      * The mirror half is just as deliberate: `rman check`/`lint`/`clean` have no reason to wait for
      * anything, and under one blanket `topo` they waited for the whole dependency chain before the
      * first one could start.
+     *
+     * **Said at the script, not on `exec`**, and that needs rman 2.11: the barrier is the first step
+     * marked `true`, else the first *unmarked* one, which takes `run.build.topo`. So `exec` is left
+     * unmarked - which also keeps the wait when a package's own `build` script replaces it, a
+     * `package.json` script having no way to say `topo`. Under 2.10 one `false` freed every step and
+     * this shape waited nowhere.
      */
     it('waits for the dependencies at tsc, and not before it', async () => {
       const repo = await repositoryFor();
@@ -589,9 +595,10 @@ describe('@panates/rman-preset: the config a repository inherits', () => {
       const topoOf = (value: unknown) =>
         (Array.isArray(value) ? value : [value]).map((item) => (item as RunStepObject | undefined)?.topo);
 
-      expect(topoOf(build.exec)).toEqual([true]);
-      /** Every pre-step says so explicitly, which is what makes the line above the *first* `true`
-       *  rather than merely a true one - rman reads the first as the barrier. */
+      expect(build.topo).toBe(true);
+      expect(topoOf(build.exec)).toEqual([undefined]);
+      /** Every other step says `false` explicitly, which is what makes `exec` the first unmarked one
+       *  - rman reads that as the barrier. */
       expect(topoOf(build.before)).toEqual([false, false, false]);
       expect(topoOf(build.after)).toEqual([false]);
     });
@@ -625,10 +632,12 @@ describe('@panates/rman-preset: the config a repository inherits', () => {
        *  leave half a build in the directory `publish` ships from. */
       expect(argv).toEqual(['tsc', '--noEmitOnError']);
       /** It emits, so a dependent reading its declarations has to wait - the one reason this is
-       *  ordered where `check`, which reads only a package's own sources, is not. */
+       *  ordered where `check`, which reads only a package's own sources, is not. Said at the
+       *  script; its one step is unmarked and so waits before it. */
+      expect(compile.topo).toBe(true);
       expect(
         (Array.isArray(compile.exec) ? compile.exec : [compile.exec]).map((s) => (s as RunStepObject).topo),
-      ).toEqual([true]);
+      ).toEqual([undefined]);
     });
   });
 
