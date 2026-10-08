@@ -4,7 +4,7 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 import { expect } from 'expect';
 import type { CommandEntry, RmanConfig, RunStepContext, RunStepFn, RunStepObject } from 'rman';
-import { Repository, runOptions } from 'rman';
+import { Repository, runBin, runOptions } from 'rman';
 import { cleanupFixtures, fixtureDir, repositoryFor } from './_fixture.js';
 
 /**
@@ -53,11 +53,30 @@ function stepFn(value: unknown): RunStepFn {
   return steps[0];
 }
 
-/** The build's `after` hook, typed for the partial context these cases hand it - it reads `pkg` and
- *  `repository` and nothing else. */
-function afterHook(repo: Repository, name = 'pkg-a'): (ctx: { pkg: unknown; repository: unknown }) => void {
-  return stepFn(buildScript(repo, name).after) as unknown as (ctx: { pkg: unknown; repository: unknown }) => void;
+/**
+ * The build's `after` hook, typed for the partial context these cases hand it - `pkg`, `repository`
+ * and `runBin`, which `copyAssets` uses to ask `tsc` for the tsconfig's directories.
+ *
+ * **`runBin` answers with a tsconfig that has no `outDir` unless a case passes its own.** Every
+ * fixture package carries an empty `tsconfig.json` and no sources, and real `tsc --showConfig`
+ * refuses that with `TS18003: No inputs were found` - which a real build never reaches, since
+ * `tsc -b` fails on it first. With no `outDir` there is nothing to copy, so the cases about the
+ * other steps are unaffected; the case about copying assets passes the real `tsc`.
+ */
+function afterHook(
+  repo: Repository,
+  name = 'pkg-a',
+): (ctx: { pkg: unknown; repository: unknown; runBin?: RunStepContext['runBin'] }) => Promise<void> {
+  const step = stepFn(buildScript(repo, name).after) as unknown as (ctx: object) => Promise<void>;
+  return (ctx) => step({ runBin: noOutDir, ...ctx });
 }
+
+const noOutDir: RunStepContext['runBin'] = async () => ({ code: 0, output: '{"compilerOptions":{}}' });
+
+/** This repository's own `tsc`, run the way a step's `runBin` would run it. */
+const TSC = path.resolve(import.meta.dirname, '../../../node_modules/.bin/tsc');
+const realTsc: RunStepContext['runBin'] = (bin, argv, options) =>
+  runBin(bin === 'tsc' ? TSC : bin, argv, { ...options, logLevel: 'silent' });
 
 /**
  * The `commands` entries this config contributed, off the **root** package's resolved config.
@@ -352,7 +371,7 @@ describe('@panates/rman-preset: the config a repository inherits', () => {
       expect(pkg.config.publish?.npm?.directory).toBe('dist');
 
       const after = afterHook(repo);
-      after({ pkg, repository: repo });
+      await after({ pkg, repository: repo });
 
       expect(fs.existsSync(path.join(pkg.dirname, 'dist', 'README.md'))).toBe(true);
     });
@@ -402,7 +421,7 @@ describe('@panates/rman-preset: the config a repository inherits', () => {
       const pkg = repo.getPackage('pkg-a')!;
 
       const after = afterHook(repo);
-      after({ pkg, repository: repo });
+      await after({ pkg, repository: repo });
 
       const at = (...p: string[]) => fs.existsSync(path.join(pkg.dirname, 'build', ...p));
 
@@ -419,6 +438,53 @@ describe('@panates/rman-preset: the config a repository inherits', () => {
       /** The object form copies a directory as it stands, nested entries included. */
       expect(at('assets', 'logo.svg')).toBe(true);
       expect(at('assets', 'icons', 'star.svg')).toBe(true);
+    });
+
+    /**
+     * **The files `tsc` does not emit go to where the compiled code looks for them.** A translation
+     * or an XML template read at run time is left in `src` by `tsc`; the hook copies them into the
+     * tsconfig's `outDir`, keeping the tree, through rman's `copyAssets` - with the real `tsc`, since
+     * `rootDir`/`outDir` are asked of it.
+     */
+    it('copies json and xml from src into the build directory, keeping the tree', async () => {
+      const dir = fixtureDir({
+        rmanrc: `extends: '@panates/rman-preset'\n`,
+        files: {
+          'packages/pkg-a/tsconfig.json': JSON.stringify({ compilerOptions: { rootDir: 'src', outDir: 'build' } }),
+          'packages/pkg-a/src/index.ts': 'export const x = 1;',
+          'packages/pkg-a/src/i18n/tr.json': '{"hello":"merhaba"}',
+          'packages/pkg-a/src/templates/report.xml': '<report/>',
+          'packages/pkg-a/src/notes.md': '# not shipped',
+        },
+      });
+      const repo = await Repository.create(dir);
+      const pkg = repo.getPackage('pkg-a')!;
+
+      await afterHook(repo)({ pkg, repository: repo, runBin: realTsc });
+
+      const at = (...p: string[]) => fs.existsSync(path.join(pkg.dirname, 'build', ...p));
+      expect(at('i18n', 'tr.json')).toBe(true);
+      expect(at('templates', 'report.xml')).toBe(true);
+      expect(at('notes.md')).toBe(false);
+    });
+
+    it('copies what vars.assets names instead of the default', async () => {
+      const dir = fixtureDir({
+        rmanrc: `extends: '@panates/rman-preset'\n"[platform:node]":\n  vars:\n    assets: ['**/*.sql']\n`,
+        files: {
+          'packages/pkg-a/tsconfig.json': JSON.stringify({ compilerOptions: { rootDir: 'src', outDir: 'build' } }),
+          'packages/pkg-a/src/index.ts': 'export const x = 1;',
+          'packages/pkg-a/src/i18n/tr.json': '{}',
+          'packages/pkg-a/src/sql/schema.sql': 'select 1;',
+        },
+      });
+      const repo = await Repository.create(dir);
+      const pkg = repo.getPackage('pkg-a')!;
+
+      await afterHook(repo)({ pkg, repository: repo, runBin: realTsc });
+
+      expect(fs.existsSync(path.join(pkg.dirname, 'build', 'sql', 'schema.sql'))).toBe(true);
+      expect(fs.existsSync(path.join(pkg.dirname, 'build', 'i18n', 'tr.json'))).toBe(false);
     });
 
     /**
@@ -461,7 +527,7 @@ describe('@panates/rman-preset: the config a repository inherits', () => {
       const pkg = repo.getPackage('pkg-a')!;
 
       const after = afterHook(repo);
-      after({ pkg, repository: repo });
+      await after({ pkg, repository: repo });
 
       const written = fs.readFileSync(path.join(pkg.dirname, 'build', 'constants.js'), 'utf-8');
       expect(written).toBe(`export const version = '${pkg.version}';\n`);
@@ -490,7 +556,7 @@ describe('@panates/rman-preset: the config a repository inherits', () => {
         const pkg = repo.getPackage(name);
         if (!pkg) continue;
         const after = afterHook(repo, name);
-        expect(() => after({ pkg, repository: repo })).not.toThrow();
+        await expect(after({ pkg, repository: repo })).resolves.toBeUndefined();
       }
       const untouched = path.join(dir, 'packages/pkg-b/build/constants.js');
       if (fs.existsSync(untouched)) expect(fs.readFileSync(untouched, 'utf-8')).toBe("export const OTHER = '1';\n");
@@ -527,7 +593,7 @@ describe('@panates/rman-preset: the config a repository inherits', () => {
       const pkg = repo.getPackage('pkg-a')!;
 
       const after = afterHook(repo);
-      expect(() => after({ pkg, repository: repo })).toThrow(/destination is a single file/);
+      await expect(after({ pkg, repository: repo })).rejects.toThrow(/destination is a single file/);
     });
 
     it('writes a consumer-shaped package.json into the build directory', async () => {
@@ -539,7 +605,7 @@ describe('@panates/rman-preset: the config a repository inherits', () => {
       const pkg = repo.getPackage('pkg-a')!;
 
       const after = afterHook(repo);
-      after({ pkg, repository: repo });
+      await after({ pkg, repository: repo });
 
       const written = path.join(pkg.dirname, 'build', 'package.json');
       expect(fs.existsSync(written)).toBe(true);
