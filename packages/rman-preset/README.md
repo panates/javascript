@@ -83,8 +83,9 @@ commands individually for exactly that reason.
   the _source_, so tests, `ts-node` and git all report what actually shipped - a build-time rewrite
   leaves the checked-in file claiming a placeholder forever.
 - **`rman build`** runs `check` → `lint` → `clean`, then `tsc -b tsconfig-build.json`, then copies
-  everything `vars.copyFiles` names into `build/` (`README.md` and `LICENSE` by default), and
-  writes a consumer-shaped `package.json` there - see below.
+  everything `vars.copyFiles` names into `build/` (`README.md` and `LICENSE` by default), copies the
+  files `tsc` does not emit from `src` (`vars.assets` - json, xml and yaml by default), and writes a
+  consumer-shaped `package.json` there - see below.
 - **`check`, `lint`, `lint:fix`** as repository-wide scripts, so no package declares any of its own.
 - **`clean`** removes `build`, `*.tsbuildinfo` and that package's own coverage directory. The
   incremental cache goes with the output deliberately: left behind, `tsc -b` decides everything is
@@ -230,7 +231,26 @@ extends: '@panates/rman-preset'
 ```
 
 Measured both ways against a real repository; `"[*]"` works as well as `"[platform:node]"`. The
-overridable vars are `buildDir`, `coveragePath` and `copyFiles`.
+overridable vars are `buildDir`, `coveragePath`, `copyFiles` and `assets`.
+
+### `assets` - the files `tsc` does not emit
+
+`tsc` compiles sources and leaves everything else in `src`: a translation, an XML template or a data
+file that code reads at run time is missing from `build/`, and the built package fails on a path
+that exists only in `src`. After the compile, the build copies them from the tsconfig's `rootDir`
+into its `outDir`, keeping the tree - `src/i18n/tr.json` lands at `build/i18n/tr.json`.
+
+```yaml
+'[platform:node]':
+  vars:
+    assets: ['**/*.json', '**/*.xml', '**/*.sql'] # replaces the default list
+```
+
+Unset, it is rman's `DEFAULT_ASSET_PATTERNS`: `**/*.json`, `**/*.xml`, `**/*.yaml`, `**/*.yml`. A
+list rather than "everything that is not TypeScript", because what is copied ships to every
+consumer. `rootDir` and `outDir` are read the way `tsc` reads them (through `extends` too), and
+`node_modules`, `tsconfig*.json` and `package.json` are never copied. It is rman's `copyAssets`,
+which a repository can also call from its own step.
 
 ### `copyFiles`
 

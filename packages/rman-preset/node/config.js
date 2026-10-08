@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { copyAssets } from 'rman';
 import checkCommand from './commands/check.js';
 import compileCommand from './commands/compile.js';
 import formatCommand from './commands/format.js';
@@ -22,6 +23,10 @@ export default {
       coveragePath: '${{ path.join(repository.dirname, "coverage") }}',
       buildDir: 'build',
       copyFiles: ['README.md', 'LICENSE'],
+      /* Globs under the tsconfig's `rootDir` copied into its `outDir` after the compile - the files
+       * `tsc` does not emit (translations, XML templates, fixtures). Unset means rman's own
+       * `DEFAULT_ASSET_PATTERNS`: json, xml, yaml, yml. */
+      assets: undefined,
       /* Paths inside the build directory whose version constant is rewritten after a build - see
        * `stampFiles`. `constants.js` because `src/constants.ts` is this organization's convention
        * and tsc's `rootDir`/`outDir` puts it there; a package without one is skipped in silence. */
@@ -80,7 +85,7 @@ export default {
            * resolved scope for this package, which is what the hook wanted in the first place. */
           after: {
             topo: false,
-            command: ({ pkg, repository }) => {
+            command: async ({ pkg, repository, runBin }) => {
               /* Annotated because `vars` is free-form by contract - rman cannot know these two hold
                * strings, so without it `path.resolve(d, name)` is passed `{}`. */
               const vars = /** @type {Record<string, string | undefined>} */ (pkg.config.vars ?? {});
@@ -109,6 +114,17 @@ export default {
                   version: pkg.version,
                 },
               );
+              /* **Last, so everything above stays synchronous.** The files `tsc` left in `src`,
+               * copied to where the compiled code looks for them - see rman's `copyAssets`.
+               * Skipped without a tsconfig, which a real build has already refused in `exec`. */
+              const tsconfig = findTsconfig(pkg);
+              if (tsconfig) {
+                await copyAssets({
+                  tsconfig,
+                  patterns: vars.assets ? (Array.isArray(vars.assets) ? vars.assets : [vars.assets]) : undefined,
+                  runBin,
+                });
+              }
             },
           },
         },
@@ -181,17 +197,24 @@ function compileWithTsc(...args) {
 /** The config `build` compiles from, preferring a build-specific one. **`compile` deliberately does
  *  not share this** - see `typecheckWithTsc` for why a check wants the editor's config instead. */
 function tsconfigFor(pkg) {
-  const candidates = ['tsconfig-build.json', 'tsconfig.build.json', 'tsconfig.json'];
-  const tsconfig = candidates.map((name) => path.join(pkg.dirname, name)).find(fs.existsSync);
+  const tsconfig = findTsconfig(pkg);
   if (!tsconfig) {
     throw new Error(
-      `${pkg.name} has none of ${candidates.join(', ')} - there is nothing for "tsc -b" to build. ` +
+      `${pkg.name} has none of ${TSCONFIG_CANDIDATES.join(', ')} - there is nothing for "tsc -b" to build. ` +
         `Add one, or keep this package out of the build with .rmanrc ` +
         `"[${pkg.name}]": { run: { build: { skip: true } } }.`,
     );
   }
   return tsconfig;
 }
+
+/** The tsconfig a build compiles `pkg` with - the first of the three names that exists - or
+ *  `undefined` when it has none. */
+function findTsconfig(pkg) {
+  return TSCONFIG_CANDIDATES.map((name) => path.join(pkg.dirname, name)).find(fs.existsSync);
+}
+
+const TSCONFIG_CANDIDATES = ['tsconfig-build.json', 'tsconfig.build.json', 'tsconfig.json'];
 
 /** The only lifecycle scripts a consumer's `npm install` runs, so the only ones worth keeping in a
  *  built package. https://docs.npmjs.com/cli/using-npm/scripts */

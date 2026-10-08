@@ -1,6 +1,6 @@
 {
   "name": "@panates/rman-preset",
-  "version": "1.9.0",
+  "version": "1.10.0",
   "description": "Panates rman configuration",
   "type": "module",
   "module": "./index.js",
@@ -22,7 +22,7 @@
     "dpdm": ">=4",
     "eslint": ">=9",
     "prettier": ">=3",
-    "rman": ">=2.11.1"
+    "rman": ">=2.17.0"
   },
   "scripts": {
     "format": "prettier . --write --log-level=warn",
