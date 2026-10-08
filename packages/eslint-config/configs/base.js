@@ -7,6 +7,7 @@ export default [
   {
     name: 'panates/base',
     files: ['**/*.{js,cjs,jsx}'],
+    ignores: ['node_modules/**', '.claude/**', '.idea/**', 'graphify-out/**', '.husky/**'],
     rules: {
       // enforces getter/setter pairs in objects
       // https://eslint.org/docs/rules/accessor-pairs
