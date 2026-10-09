@@ -4,5 +4,5 @@
     "allowJs": true,
     "checkJs": true
   },
-  "include": ["./**/*.ts", "../index.js", "../node/**/*.js"]
+  "include": ["./**/*.ts", "../index.js", "../node/**/*.js", "../node/rmanrc.d.ts"]
 }

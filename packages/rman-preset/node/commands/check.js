@@ -98,9 +98,13 @@ export default (app) => {
     ],
     /**
      * @param {import('rman').ArgsOf<typeof config, typeof COMMAND>} args
-     * @param {import('rman').CommandContext} context
+     * @param {import('rman').CommandContext} [context]
      */
     handler: async (args, context) => {
+      /* Optional in rman's type, and always handed over by its CLI: only a caller registering
+       * commands without a repository (a spec listing them) leaves it out, and that caller never
+       * runs a handler. Said here rather than assumed, so the type narrows. */
+      if (!context) throw new Error('"rman check" needs the CommandContext rman hands a command.');
       const logger = context.logger;
 
       /**

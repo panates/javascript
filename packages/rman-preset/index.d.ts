@@ -1,4 +1,5 @@
 import type { RmanNodeConfig } from 'rman';
+import './node/rmanrc.js';
 
 export type { CopyFilesEntry, CopyFilesOptions } from './node/copy-files.js';
 export { copyFiles } from './node/copy-files.js';
