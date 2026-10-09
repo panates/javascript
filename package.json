@@ -1,6 +1,6 @@
 {
   "name": "panates-style",
-  "version": "2026.10.9-1309",
+  "version": "2026.10.9-1428",
   "private": "true",
   "description": "A mostly reasonable approach to JavaScript and TypeScript",
   "workspaces": [
