@@ -36,10 +36,10 @@
   },
   "author": "Panates",
   "license": "MIT",
-  "homepage": "https://github.com/panates/javascript.git",
+  "homepage": "https://github.com/panates/javascript/tree/main/packages/rman-preset#readme",
   "repository": {
     "type": "git",
-    "url": "https://github.com/panates/javascript.git",
+    "url": "git+https://github.com/panates/javascript.git",
     "directory": "./packages/rman-preset"
   },
   "bugs": {
