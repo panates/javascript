@@ -1,0 +1,79 @@
+{
+  "name": "@panates/eslint-config-react",
+  "version": "2.2.2",
+  "description": "React rules for Panates ESLint config, following our styleguide",
+  "type": "module",
+  "module": "./index.js",
+  "exports": {
+    ".": "./index.js",
+    "./next": "./configs/next.js",
+    "./vite": "./configs/vite.js",
+    "./package.json": "./package.json"
+  },
+  "dependencies": {
+    "@panates/eslint-config-ts": "^2.2.2"
+  },
+  "peerDependencies": {
+    "@eslint-react/eslint-plugin": ">=5",
+    "@next/eslint-plugin-next": ">=15",
+    "eslint-plugin-react-hooks": ">=7",
+    "eslint-plugin-react-refresh": ">=0.5"
+  },
+  "peerDependenciesMeta": {
+    "@next/eslint-plugin-next": {
+      "optional": true
+    },
+    "eslint-plugin-react-refresh": {
+      "optional": true
+    }
+  },
+  "scripts": {
+    "format": "prettier . --write --log-level=warn",
+    "lint": "eslint . --max-warnings=0 --fix",
+    "prepublish": "npm run format && npm run lint"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "author": "Panates",
+  "license": "MIT",
+  "homepage": "https://github.com/panates/javascript.git",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/panates/javascript.git",
+    "directory": "./packages/eslint-config-react"
+  },
+  "bugs": {
+    "url": "https://github.com/panates/javascript/issues"
+  },
+  "keywords": [
+    "eslint",
+    "eslintconfig",
+    "config",
+    "panates",
+    "react",
+    "nextjs",
+    "vite",
+    "typescript",
+    "styleguide"
+  ],
+  "contributors": [
+    "Eray Hanoglu <e.hanoglu@panates.com>",
+    "Ilker Gurelli <i.gurelli@panates.com>",
+    "Onur Tokel <o.tokel@panates.com>",
+    "Bircan Yuruk <b.yuruk@panates.com>"
+  ],
+  "devDependencies": {
+    "@eslint-react/eslint-plugin": "^5.24.10",
+    "@next/eslint-plugin-next": "^16.4.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.7"
+  },
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "configs",
+    "README.md",
+    "LICENSE"
+  ]
+}
