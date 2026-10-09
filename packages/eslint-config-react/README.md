@@ -33,15 +33,18 @@ export default [...panatesReact.configs.react];
 // eslint.config.mjs - Next.js
 import next from '@panates/eslint-config-react/next';
 
-export default [{ ignores: ['.next/**'] }, ...next];
+export default [...next];
 ```
 
 ```js
 // eslint.config.mjs - Vite
 import vite from '@panates/eslint-config-react/vite';
 
-export default [{ ignores: ['dist/**'] }, ...vite];
+export default [...vite];
 ```
+
+The Vite entry leaves `dist` and `coverage` unlinted, the Next one `.next`. A build directory of
+your own goes in an `ignores` block of your own.
 
 `configPatches.react` is the React layer alone, to add on top of a config of your own.
 
@@ -52,3 +55,17 @@ export default [{ ignores: ['dist/**'] }, ...vite];
 - **Hooks are checked once.** Rules both plugins have (`rules-of-hooks`, `exhaustive-deps`, the
   React Compiler ones) are left to `react-hooks`.
 - **Relative imports need no extension** (`import-x/extensions` is off) - a bundler resolves them.
+- **A prettier plugin named in a package's prettier config is resolved from where ESLint runs.**
+  Formatting is checked through `eslint-plugin-prettier`, and prettier looks a plugin name such as
+  `'prettier-plugin-tailwindcss'` up from the working directory - so `eslint` run at a monorepo's
+  root fails with `Cannot find package ...` for a plugin only that package installs. Resolve it
+  against the config file instead:
+
+  ```js
+  // prettier.config.js
+  import { fileURLToPath } from 'node:url';
+
+  export default {
+    plugins: [fileURLToPath(import.meta.resolve('prettier-plugin-tailwindcss'))],
+  };
+  ```

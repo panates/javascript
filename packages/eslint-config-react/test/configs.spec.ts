@@ -27,6 +27,12 @@ describe('@panates/eslint-config-react', () => {
     return result!.messages.map((m) => m.ruleId ?? `fatal: ${m.message}`).filter((id) => id !== 'prettier/prettier');
   }
 
+  async function ignored(config: Linter.Config[], file: string): Promise<boolean> {
+    return new ESLint({ cwd: dir, overrideConfigFile: true, overrideConfig: config }).isPathIgnored(
+      path.join(dir, file),
+    );
+  }
+
   const clean = `import { useState } from 'react';
 
 export function Counter({ start }: { start: number }) {
@@ -136,6 +142,11 @@ export function useThing(on: boolean) {
     it('keeps the React rules underneath', async () => {
       expect(await ruleIds(nextConfig, 'app/Counter.tsx', clean)).toEqual([]);
     });
+
+    it("leaves Next's build output alone", async () => {
+      expect(await ignored(nextConfig, '.next/server/app/page.js')).toBe(true);
+      expect(await ignored(nextConfig, 'app/page.tsx')).toBe(false);
+    });
   });
 
   describe('vite', () => {
@@ -155,6 +166,14 @@ export function App() {
 
     it('keeps the React rules underneath', async () => {
       expect(await ruleIds(viteConfig, 'src/Counter.tsx', clean)).toEqual([]);
+    });
+
+    /** A build leaves compiled code in `dist`, which would otherwise be linted as source. */
+    it('leaves the build and coverage output alone', async () => {
+      expect(await ignored(viteConfig, 'dist/assets/index.js')).toBe(true);
+      expect(await ignored(viteConfig, 'packages/web/dist/index.js')).toBe(true);
+      expect(await ignored(viteConfig, 'coverage/lcov-report/index.js')).toBe(true);
+      expect(await ignored(viteConfig, 'src/App.tsx')).toBe(false);
     });
   });
 });
