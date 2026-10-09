@@ -672,6 +672,39 @@ describe('@panates/rman-preset: the config a repository inherits', () => {
     });
 
     /**
+     * **A monorepo lints once, at the root; a package lints only when the build was started inside
+     * it.** `rman lint` covers the whole repository, so run from every package's hook it linted
+     * everything once per package and reported one mistake as every package's failure - measured on
+     * `panates/syncbridge`, ten packages failed on one line in `syncbuild`. The root's bookend runs
+     * it once; rman drops that bookend when a build is scoped to one package, and the package's own
+     * step - gated by its `if` - takes over there, where the nested `rman lint` lints that package.
+     */
+    it('lints once from the root bookend, and in a package only when the run was scoped to it', async () => {
+      const repo = await repositoryFor();
+      const root = repo.rootPackage.config.run?.build as RmanConfig.RunScriptOptions;
+      expect(stepsOf(root.before)).toEqual(['rman lint']);
+
+      const lint = (buildScript(repo).before as RunStepObject[]).find((s) => s.command === 'rman lint')!;
+      const decide = lint.if as (ctx: object) => boolean;
+      expect(typeof decide).toBe('function');
+      expect(decide({ repository: { monorepo: true }, scopedTo: undefined })).toBe(false);
+      expect(decide({ repository: { monorepo: true }, scopedTo: repo.getPackage('pkg-a') })).toBe(true);
+      /** A single-package repository has no bookend, so its one package always lints. */
+      expect(decide({ repository: { monorepo: false }, scopedTo: undefined })).toBe(true);
+    });
+
+    /** In a single-package repository `"[/]"` and `"[*]"` both reach the root, and the `"[*]"` list -
+     *  written below - replaces the bookend's, so lint is in it once and check and clean survive. */
+    it('keeps check, lint and clean in a single-package repository, lint once', async () => {
+      const dir = fixtureDir();
+      fs.writeFileSync(path.join(dir, 'package.json'), JSON.stringify({ name: 'solo', version: '1.0.0' }));
+      fs.writeFileSync(path.join(dir, 'tsconfig.json'), '{}');
+      const repo = await Repository.create(dir);
+      const build = repo.rootPackage.config.run?.build as RmanConfig.RunScriptOptions;
+      expect(stepsOf(build.before)).toEqual(['rman check', 'rman lint', 'rman clean']);
+    });
+
+    /**
      * **`tsc` waits for the dependencies; nothing before it does.** This is the one case here about
      * the *shape* of a step rather than what it does, and it has to exist: every other case reads
      * through `stepsOf`, which unwraps the object form and would be just as happy with the markers
@@ -831,6 +864,33 @@ describe('@panates/rman-preset: the config a repository inherits', () => {
      * **One row in `--help`, not two.** Both were registered until rman skipped a shadowed
      * built-in, and a name listed twice with two descriptions says nothing about which runs.
      */
+    /**
+     * **`rman lint` lints the package it is run inside**, from the root so the flat config and its
+     * plugins resolve - the rule rman's own `run`, `build` and `clean` follow - and the whole
+     * repository from the root or under `--from-root`. A stand-in `eslint` records what it was
+     * handed: what is being pinned is the argument, not eslint's verdict.
+     */
+    it('lint narrows to the package it is run inside, and --from-root widens it back', async () => {
+      const repo = await repositoryFor();
+      const log = path.join(repo.dirname, 'eslint.log');
+      const bin = path.join(repo.dirname, 'node_modules', '.bin');
+      fs.mkdirSync(bin, { recursive: true });
+      fs.writeFileSync(path.join(bin, 'eslint'), `#!/bin/sh\necho "$PWD :: $1" >> ${JSON.stringify(log)}\n`, {
+        mode: 0o755,
+      });
+      const cli = path.join(repo.dirname, 'node_modules', 'rman', 'cli.js');
+      const lint = async (cwd: string, ...args: string[]) => {
+        fs.rmSync(log, { force: true });
+        await promisify(execFile)(process.execPath, [cli, 'lint', ...args], { cwd });
+        return fs.readFileSync(log, 'utf-8').trim().replace(fs.realpathSync(repo.dirname), '<root>').replace(repo.dirname, '<root>');
+      };
+      const inPkg = path.join(repo.dirname, 'packages', 'pkg-a');
+
+      expect(await lint(repo.dirname)).toBe('<root> :: .');
+      expect(await lint(inPkg)).toBe(`<root> :: ${path.join('packages', 'pkg-a')}`);
+      expect(await lint(inPkg, '--from-root')).toBe('<root> :: .');
+    });
+
     it('takes the built-in test alias, and leaves one row in --help', async () => {
       const repo = await repositoryFor();
       const { stdout } = await runRman(repo.dirname, '--help');

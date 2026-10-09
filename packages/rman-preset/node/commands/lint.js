@@ -1,4 +1,5 @@
-import { parallelOptions, runBin } from 'rman';
+import path from 'node:path';
+import { fromRootOption, parallelOptions, runBin } from 'rman';
 
 const COMMAND = 'lint [paths..]';
 
@@ -12,6 +13,7 @@ const config = {
    * it accepts a boolean *or* a number, and that is `coerce`'s doing.
    */
   parallel: parallelOptions.parallel,
+  ...fromRootOption('Lint'),
   concurrency: {
     target: 'config',
     describe:
@@ -43,20 +45,25 @@ const config = {
  *  @satisfies {Record<string, import('rman').PositionalOption>} */
 const positionals = {
   paths: {
-    describe: 'What to lint, relative to the repository root. Defaults to the whole repository.',
+    describe:
+      'What to lint, relative to the repository root. Defaults to the package the command is run ' +
+      'inside, or the whole repository from anywhere else.',
     type: 'string',
     array: true,
   },
 };
 
 /**
- * `rman lint` - runs eslint **once at the repository root**.
+ * `rman lint` - runs eslint **once, from the repository root**: over the whole repository, or over
+ * the package the command is run inside (`--from-root` for the whole repository anyway) - the rule
+ * rman's own `run`, `build` and `clean` follow.
  *
  * Same reasoning as `rman format`: a linter decides its own scope. `eslint .` against the flat
  * config at the root already covers every package plus everything that belongs to no package, so a
- * per-package run reloads the config and rebuilds the TypeScript program once per package and still
- * misses the root's own files. It therefore takes no package filter and no `--from-root` - neither
- * would do anything, and a no-op flag reads as a promise.
+ * per-package sweep reloads the config and rebuilds the TypeScript program once per package and
+ * still misses the root's own files. It therefore takes no package filter. Narrowing to the current
+ * package is different: one eslint process, still run from the root so the flat config and its
+ * plugins resolve, handed one directory instead of `.`.
  *
  * `--fix` replaces what used to be a separate `lint:fix` script - one switch on one command rather
  * than two scripts that must be kept saying the same thing.
@@ -75,7 +82,7 @@ export default (app) => {
   return {
     command: COMMAND,
     platform: 'node',
-    describe: 'Lints the whole repository with eslint (--fix to apply the fixable ones)',
+    describe: 'Lints the repository with eslint, or the package it is run inside (--fix to apply the fixable ones)',
     config,
     positionals,
     examples: [
@@ -83,11 +90,13 @@ export default (app) => {
       { command: '$0 lint --fix', description: '# Fix what can be fixed' },
       { command: '$0 lint --max-warnings=-1', description: '# Report warnings without failing' },
       { command: '$0 lint packages/core', description: '# Just one directory' },
+      { command: '$0 lint --from-root', description: '# The whole repository, from inside a package' },
       { command: '$0 lint --parallel false', description: '# One thread, for a loaded machine' },
     ],
     /** @param {import('rman').ArgsOf<typeof config, typeof COMMAND>} args */
     handler: async (args) => {
-      const paths = args.paths?.length ? args.paths : ['.'];
+      const scope = args.fromRoot ? undefined : repository.currentPackage;
+      const paths = args.paths?.length ? args.paths : [scope ? path.relative(repository.dirname, scope.dirname) : '.'];
       /** Nothing is passed unless asked for - see `eslintConcurrency`, where one repository in
        *  three is broken by the flag at any value. */
       const concurrency = eslintConcurrency(args.parallel ?? repository.rootPackage.config.lint?.concurrency);

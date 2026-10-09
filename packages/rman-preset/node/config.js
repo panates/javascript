@@ -37,6 +37,19 @@ export default {
       clean: {
         include: '${{ [...value, vars.coveragePath] }}',
       },
+      /* **A monorepo lints once, here, before any package builds** - `rman lint` covers the whole
+       * repository, so run from each package's hook it linted everything once per package and
+       * reported one mistake as every package's failure (measured on `panates/syncbridge`: ten
+       * packages failed on one line in `syncbuild`). rman drops this bookend when the build is
+       * scoped to the package it was run inside; the package's own lint step covers that case.
+       *
+       * In a single-package repository `"[*]"` reaches the root too and, written below, replaces
+       * this list - which is right, since there the package's own hook is the only one that runs. */
+      run: {
+        build: {
+          before: [{ topo: false, command: 'rman lint' }],
+        },
+      },
     },
 
     '[*]': {
@@ -69,8 +82,13 @@ export default {
               topo: false,
               command: 'rman check',
             },
+            /* **Linted here only where the root's bookend does not run** - a monorepo build started
+             * inside a package (rman drops the bookend there; `scopedTo` is that package), and every
+             * build of a single-package repository, which has no bookend at all. The nested
+             * `rman lint` runs in the package's directory and lints that package alone. */
             {
               topo: false,
+              if: ({ repository, scopedTo }) => !repository.monorepo || !!scopedTo,
               command: 'rman lint',
             },
             {
