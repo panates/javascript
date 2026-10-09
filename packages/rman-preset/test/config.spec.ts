@@ -895,6 +895,33 @@ describe('@panates/rman-preset: the config a repository inherits', () => {
       expect(await lint(inPkg, '--from-root')).toBe('<root> :: .');
     });
 
+    /**
+     * **`check` fails on what npm would correct in a `package.json`** - npm's own normalization, read
+     * without writing, so a release does not reach `npm warn publish errors corrected` in CI. A
+     * package with no `src/index.ts` still has its manifest checked; only the dependency walk needs
+     * an entry point.
+     */
+    it('check fails on a package.json npm would correct, naming the correction', async () => {
+      const manifest = (url: string) =>
+        JSON.stringify({ name: 'pkg-a', version: '1.0.0', repository: { type: 'git', url } });
+      const bad = await repositoryFor({
+        files: { 'packages/pkg-a/package.json': manifest('https://github.com/acme/pkg-a.git') },
+      });
+      const failure = await runRman(bad.dirname, 'check', '--no-progress').then(
+        () => undefined,
+        (e: { stdout: string; stderr: string }) => e.stdout + e.stderr,
+      );
+      expect(failure).toBeDefined();
+      expect(failure).toContain('"repository.url" was normalized to "git+https://github.com/acme/pkg-a.git"');
+      expect(failure).toContain('npm pkg fix');
+
+      const good = await repositoryFor({
+        files: { 'packages/pkg-a/package.json': manifest('git+https://github.com/acme/pkg-a.git') },
+      });
+      const { stdout, stderr } = await runRman(good.dirname, 'check', '--no-progress');
+      expect(stdout + stderr).toContain('package.json as npm publishes it');
+    });
+
     it('takes the built-in test alias, and leaves one row in --help', async () => {
       const repo = await repositoryFor();
       const { stdout } = await runRman(repo.dirname, '--help');

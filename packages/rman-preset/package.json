@@ -66,6 +66,7 @@
     "access": "public"
   },
   "dependencies": {
+    "@npmcli/package-json": "^7.0.5",
     "tinyglobby": "^0.2.17"
   },
   "types": "./index.d.ts"

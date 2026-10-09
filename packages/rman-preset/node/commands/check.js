@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import PackageJson from '@npmcli/package-json';
 import {
   filterPackages,
   fromRootOption,
@@ -86,7 +87,7 @@ export default (app) => {
   return {
     command: COMMAND,
     platform: 'node',
-    describe: 'Checks each package for circular dependencies with dpdm',
+    describe: 'Checks each package: package.json as npm will publish it, and circular dependencies with dpdm',
     config,
     examples: [
       { command: '$0 check' },
@@ -128,23 +129,22 @@ export default (app) => {
         packages = packages.filter((pkg) => status[pkg.name] !== 'clean');
       }
 
-      /** A package without the entry file has nothing to walk - skipped rather than handed to dpdm,
-       *  which would fail on it. Counted, so "every package was skipped" can't read as success. */
-      const checkable = packages.filter((pkg) => fs.existsSync(path.resolve(pkg.dirname, entry)));
-      const skipped = packages.length - checkable.length;
+      /** A package without the entry file has nothing for dpdm to walk, and still has a manifest to
+       *  check - so it is scheduled, and the walk alone is skipped. */
+      const hasEntry = (/** @type {import('rman').Package} */ pkg) => fs.existsSync(path.resolve(pkg.dirname, entry));
+      const withoutEntry = packages.filter((pkg) => !hasEntry(pkg)).length;
 
-      if (!checkable.length) {
-        /** The two endings, kept apart the way rman's own `run` keeps them: nothing to check because
-         *  a filter excluded everything is the correct answer to what was asked, and exits 0. No
-         *  package having an entry point at all is a mistake - a wrong `--entry`, or this command
-         *  pointed at a repository it doesn't fit - and must not pass. */
-        if (packages.length) {
-          const message = `No package has "${entry}" - nothing to check.`;
-          console.error(message);
-          throw loggedError(message);
-        }
+      if (!packages.length) {
         logger.info(`Nothing to check - every package was filtered out.`);
         return;
+      }
+      /** An entry point that matches no package at all, asked for by name, is a mistake - a wrong
+       *  `--entry` - and must not pass on the strength of the manifests alone. The default missing
+       *  everywhere is a repository with no TypeScript sources, which is fine. */
+      if (withoutEntry === packages.length && entry !== DEFAULT_ENTRY) {
+        const message = `No package has "${entry}" - nothing to walk.`;
+        console.error(message);
+        throw loggedError(message);
       }
 
       /**
@@ -155,8 +155,19 @@ export default (app) => {
        * panel's own recap already prints, per package and with the failing output replayed.
        */
       await context.forEachPackage(
-        checkable,
+        packages,
         async ({ pkg, runBin, logger: stepLogger }) => {
+          const corrections = await manifestCorrections(pkg.dirname);
+          for (const change of corrections) console.error(`package.json: ${change} - "npm pkg fix" corrects it`);
+          const manifestProblem =
+            corrections.length > 0 && plural(corrections.length, 'package.json correction', 'package.json corrections');
+
+          if (!hasEntry(pkg)) {
+            if (manifestProblem) throw loggedError(manifestProblem);
+            stepLogger.info(`package.json as npm publishes it, no ${entry} to walk`);
+            return;
+          }
+
           /** The worker's stderr is the step's output - a missing dpdm says so there; its stdout is
            *  the one JSON line, read off the result rather than printed. */
           const { output } = await runBin('node', [WORKER, entry], {
@@ -175,6 +186,7 @@ export default (app) => {
           for (const miss of result.unresolved) console.error(`unresolved import "${miss.request}" in ${miss.file}`);
 
           const problems = [
+            manifestProblem,
             result.cycles.length && plural(result.cycles.length, 'circular dependency', 'circular dependencies'),
             result.unresolved.length && plural(result.unresolved.length, 'unresolved import', 'unresolved imports'),
           ].filter(Boolean);
@@ -192,9 +204,7 @@ export default (app) => {
         },
       );
 
-      /** The one count the panel cannot know: a package with no entry file was never handed to the
-       *  scheduler at all, and "every package was skipped" must not read as a clean check. */
-      if (skipped) logger.info(`${skipped} skipped (no ${entry})`);
+      if (withoutEntry) logger.info(`${withoutEntry} without ${entry}: package.json checked, no walk`);
     },
   };
 };
@@ -216,4 +226,20 @@ function loggedError(message) {
 /** `1 circular dependency`, `2 circular dependencies`. */
 function plural(count, one, many) {
   return `${count} ${count === 1 ? one : many}`;
+}
+
+/**
+ * What npm would correct in the package's `package.json` when publishing it - npm's own messages,
+ * `'"repository.url" was normalized to ...'` - and nothing is written.
+ */
+/* **npm's own normalization, through the library npm publishes with** (`@npmcli/package-json`'s
+ * `fix`, which only changes the file when `save` is called). Every one of these is printed by
+ * `npm publish` as `npm warn publish errors corrected`, in CI, after the version is already tagged -
+ * measured on this repository's 2.3.0 release, `repository.url` on every package. A list of our own
+ * would be a second opinion about what npm accepts; this is npm's, and follows its new rules. */
+async function manifestCorrections(dir) {
+  /** @type {string[]} */
+  const changes = [];
+  await PackageJson.fix(dir, { changes });
+  return changes;
 }
