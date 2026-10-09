@@ -882,7 +882,11 @@ describe('@panates/rman-preset: the config a repository inherits', () => {
       const lint = async (cwd: string, ...args: string[]) => {
         fs.rmSync(log, { force: true });
         await promisify(execFile)(process.execPath, [cli, 'lint', ...args], { cwd });
-        return fs.readFileSync(log, 'utf-8').trim().replace(fs.realpathSync(repo.dirname), '<root>').replace(repo.dirname, '<root>');
+        return fs
+          .readFileSync(log, 'utf-8')
+          .trim()
+          .replace(fs.realpathSync(repo.dirname), '<root>')
+          .replace(repo.dirname, '<root>');
       };
       const inPkg = path.join(repo.dirname, 'packages', 'pkg-a');
 
