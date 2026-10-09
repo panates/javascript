@@ -1,6 +1,6 @@
 {
   "name": "@panates/eslint-config-react",
-  "version": "2.3.0",
+  "version": "2.3.1",
   "description": "React rules for Panates ESLint config, following our styleguide",
   "type": "module",
   "module": "./index.js",
@@ -11,7 +11,7 @@
     "./package.json": "./package.json"
   },
   "dependencies": {
-    "@panates/eslint-config-ts": "^2.3.0"
+    "@panates/eslint-config-ts": "^2.3.1"
   },
   "peerDependencies": {
     "@eslint-react/eslint-plugin": ">=5",
