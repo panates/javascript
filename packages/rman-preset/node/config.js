@@ -103,10 +103,15 @@ export default {
            * resolved scope for this package, which is what the hook wanted in the first place. */
           after: {
             topo: false,
-            command: async ({ pkg, repository, runBin }) => {
-              /* Annotated because `vars` is free-form by contract - rman cannot know these two hold
+            command: async ({ pkg, repository, runBin, vars: scoped }) => {
+              /* **The step's own `vars`, as rman hands them over** - the top-level block with
+               * `run.vars` and `run.build.vars` over it, which is where `copyFiles` is declared above.
+               * `pkg.config.vars` is the top level alone, and reading it is what lost README and
+               * LICENSE the day `copyFiles` moved into `run.build.vars`.
+               *
+               * Annotated because `vars` is free-form by contract - rman cannot know these two hold
                * strings, so without it `path.resolve(d, name)` is passed `{}`. */
-              const vars = /** @type {Record<string, string | undefined>} */ (pkg.config.vars ?? {});
+              const vars = /** @type {Record<string, string | undefined>} */ (scoped ?? pkg.config.vars ?? {});
               const entries = vars.copyFiles ? (Array.isArray(vars.copyFiles) ? vars.copyFiles : [vars.copyFiles]) : [];
               const buildDir = pkg.config.publish?.npm?.directory ?? 'build';
               const buildPath = path.resolve(pkg.dirname, buildDir);
