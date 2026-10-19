@@ -377,6 +377,30 @@ describe('@panates/rman-preset: the config a repository inherits', () => {
     });
 
     /**
+     * **A 1.x top-level `copyFiles` is shadowed by the build's own**, which is the break 2.0 makes:
+     * rman scopes `run.build.vars` over the top level, so the build copies the default list alone.
+     * Pinned so the migration note in the README stays true.
+     */
+    it("lets the build's own copyFiles shadow a top-level one", async () => {
+      const dir = fixtureDir({
+        rmanrc: [
+          `extends: '@panates/rman-preset'`,
+          `"[platform:node]":`,
+          `  vars:`,
+          `    copyFiles: ['NOTICE']`,
+          ``,
+        ].join('\n'),
+        files: { 'packages/pkg-a/README.md': '# a', 'packages/pkg-a/NOTICE': 'notice' },
+      });
+      const repo = await Repository.create(dir);
+      const pkg = repo.getPackage('pkg-a')!;
+      await afterHook(repo)({ pkg, repository: repo });
+
+      expect(fs.existsSync(path.join(pkg.dirname, 'build', 'README.md'))).toBe(true);
+      expect(fs.existsSync(path.join(pkg.dirname, 'build', 'NOTICE'))).toBe(false);
+    });
+
+    /**
      * **The build directory gets a manifest of its own**, so it is a complete package: `node
      * build/index.js` needs one beside it to pick up `"type": "module"`, and what a release will
      * contain can be read without running a publish.
@@ -398,14 +422,16 @@ describe('@panates/rman-preset: the config a repository inherits', () => {
       const dir = fixtureDir({
         rmanrc: [
           `extends: '@panates/rman-preset'`,
-          `"[platform:node]":`,
-          `  vars:`,
-          `    copyFiles:`,
-          `      - README.md`,
-          `      - LICENSE > doc/LICENCE.txt`,
-          `      - CHANGES.md, NOTICE > legal/`,
-          `      - '*.md > every/'`,
-          `      - { from: assets, to: assets }`,
+          `"[*]":`,
+          `  run:`,
+          `    build:`,
+          `      vars:`,
+          `        copyFiles:`,
+          `          - README.md`,
+          `          - LICENSE > doc/LICENCE.txt`,
+          `          - CHANGES.md, NOTICE > legal/`,
+          `          - '*.md > every/'`,
+          `          - { from: assets, to: assets }`,
           ``,
         ].join('\n'),
         files: {
@@ -579,15 +605,18 @@ describe('@panates/rman-preset: the config a repository inherits', () => {
     /** Several sources with a file destination is a mistake, not five files racing for one path. */
     it('refuses a multi-source entry whose destination is a single file', async () => {
       const dir = fixtureDir({
-        rmanrc: [
-          `extends: '@panates/rman-preset'`,
-          `"[platform:node]":`,
-          `  vars:`,
-          `    copyFiles:`,
-          `      - README.md, NOTICE > doc/one.txt`,
-          ``,
-        ].join('\n'),
-        files: { 'packages/pkg-a/README.md': '# a', 'packages/pkg-a/NOTICE': 'notice' },
+        rmanrc: `extends: '@panates/rman-preset'\n`,
+        files: {
+          'packages/pkg-a/.rmanrc.yml': [
+            'run:',
+            '  build:',
+            '    vars:',
+            '      copyFiles: ["README.md, NOTICE > doc/one.txt"]',
+            '',
+          ].join('\n'),
+          'packages/pkg-a/README.md': '# a',
+          'packages/pkg-a/NOTICE': 'notice',
+        },
       });
       const repo = await Repository.create(dir);
       const pkg = repo.getPackage('pkg-a')!;
