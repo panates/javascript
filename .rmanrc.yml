@@ -5,7 +5,7 @@ changelog:
 
 # The ESLint configs are one product: they release together on one version
 # line, and every one of them moves whenever any does.
-"[@panates/eslint-config*]":
+'[@panates/eslint-config*]':
   group: eslint
   version:
     cascade: group
