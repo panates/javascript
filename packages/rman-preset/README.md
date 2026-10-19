@@ -83,7 +83,7 @@ commands individually for exactly that reason.
   the _source_, so tests, `ts-node` and git all report what actually shipped - a build-time rewrite
   leaves the checked-in file claiming a placeholder forever.
 - **`rman build`** runs `check` → `lint` → `clean`, then `tsc -b tsconfig-build.json`, then copies
-  everything `vars.copyFiles` names into `build/` (`README.md` and `LICENSE` by default), copies the
+  everything `run.build.vars.copyFiles` names into `build/` (`README.md` and `LICENSE` by default), copies the
   files `tsc` does not emit from `src` (`vars.assets` - json, xml and yaml by default), and writes a
   consumer-shaped `package.json` there - see below.
 - **`check`, `lint`, `lint:fix`** as repository-wide scripts, so no package declares any of its own.
@@ -231,7 +231,7 @@ extends: '@panates/rman-preset'
 ```
 
 Measured both ways against a real repository; `"[*]"` works as well as `"[platform:node]"`. The
-overridable vars are `buildDir`, `coveragePath`, `copyFiles` and `assets`.
+overridable vars are `buildDir`, `coveragePath` and `assets`; `copyFiles` is the build's own, below.
 
 ### `assets` - the files `tsc` does not emit
 
@@ -257,16 +257,38 @@ which a repository can also call from its own step.
 A list of what to copy into the build directory. Sources are looked up in the package first and the
 repository root second, so one declaration covers a per-package `README.md` and a shared `LICENSE`.
 
+**It is a var of the build, `run.build.vars.copyFiles`**, since the build's last step is its only
+reader. To add to the default list, extend `value` - in a package's own `.rmanrc.yml`, unmarked:
+
 ```yaml
-'[platform:node]':
-  vars:
-    copyFiles:
-      - README.md # -> build/README.md
-      - LICENSE > doc/LICENSE # -> build/doc/LICENSE
-      - CHANGES.md, NOTICE > legal/ # both, into build/legal/
-      - '*.md > doc/' # every .md, into build/doc/
-      - { from: assets, to: assets } # the directory, recursively
+run:
+  build:
+    vars:
+      copyFiles: "${{ [...value, { from: 'src/migrations', to: 'migrations' }] }}"
 ```
+
+To replace it, write the list:
+
+```yaml
+run:
+  build:
+    vars:
+      copyFiles:
+        - README.md # -> build/README.md
+        - LICENSE > doc/LICENSE # -> build/doc/LICENSE
+        - CHANGES.md, NOTICE > legal/ # both, into build/legal/
+        - '*.md > doc/' # every .md, into build/doc/
+        - { from: assets, to: assets } # the directory, recursively
+```
+
+**At the repository root, write it under `"[*]"`, not `"[platform:node]"`.** This config declares
+the build under `"[platform:node]"` > `"[*]"`, and a nested block is layered after its parent's own
+keys - so a root `"[platform:node]": { run: { build: { vars } } }` is overridden by the default list.
+A package's own `.rmanrc.yml` is a closer level and wins either way.
+
+**Moving from 1.x**: `copyFiles` was a top-level var, and a `vars: { copyFiles }` there is now
+shadowed by the build's own - the build copies `README.md` and `LICENSE` alone, and says nothing.
+Move the declaration under `run.build.vars`.
 
 `>` is the whole of the string form, and **a trailing `/` on the destination is what says
 "directory"**. Without one the destination is the file's own path, so it can rename - and several

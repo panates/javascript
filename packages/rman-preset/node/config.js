@@ -22,7 +22,6 @@ export default {
     vars: {
       coveragePath: '${{ path.join(repository.dirname, "coverage") }}',
       buildDir: 'build',
-      copyFiles: ['README.md', 'LICENSE'],
       /* Globs under the tsconfig's `rootDir` copied into its `outDir` after the compile - the files
        * `tsc` does not emit (translations, XML templates, fixtures). Unset means rman's own
        * `DEFAULT_ASSET_PATTERNS`: json, xml, yaml, yml. */
@@ -77,6 +76,12 @@ export default {
       run: {
         build: {
           topo: true,
+          /* **`copyFiles` is the build's own var**, since only its `after` step reads it - rman hands
+           * that step the slot's scope, so a package extends the list where the build is configured:
+           * `run: { build: { vars: { copyFiles: "${{ [...value, 'docs'] }}" } } }`. */
+          vars: {
+            copyFiles: ['README.md', 'LICENSE'],
+          },
           before: [
             {
               topo: false,
@@ -107,11 +112,12 @@ export default {
               /* **The step's own `vars`, as rman hands them over** - the top-level block with
                * `run.vars` and `run.build.vars` over it, which is where `copyFiles` is declared above.
                * `pkg.config.vars` is the top level alone, and reading it is what lost README and
-               * LICENSE the day `copyFiles` moved into `run.build.vars`.
+               * LICENSE the day `copyFiles` moved into `run.build.vars`. Without them (a caller that
+               * hands none) the same scope is read back from the resolved config.
                *
                * Annotated because `vars` is free-form by contract - rman cannot know these two hold
                * strings, so without it `path.resolve(d, name)` is passed `{}`. */
-              const vars = /** @type {Record<string, string | undefined>} */ (scoped ?? pkg.config.vars ?? {});
+              const vars = /** @type {Record<string, string | undefined>} */ (scoped ?? slotVars(pkg));
               const entries = vars.copyFiles ? (Array.isArray(vars.copyFiles) ? vars.copyFiles : [vars.copyFiles]) : [];
               const buildDir = pkg.config.publish?.npm?.directory ?? 'build';
               const buildPath = path.resolve(pkg.dirname, buildDir);
@@ -284,4 +290,19 @@ function writeBuildManifest(pkg, buildDir) {
   const dir = path.resolve(pkg.dirname, buildDir);
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, 'package.json'), JSON.stringify(json, undefined, 2) + '\n', 'utf-8');
+}
+
+/**
+ * The `vars` the build's steps see, read back from the resolved config: the top level, then
+ * `run.vars`, then `run.build.vars`, closest last - what rman hands a step as `ctx.vars`.
+ *
+ * @param {import('rman').Package} pkg
+ * @returns {Record<string, unknown>}
+ */
+/* For a caller that hands no `vars` - an rman older than 2.28.0, or a spec calling the step
+ * directly. `run.build` may be a bare string or a list, which carry no `vars`. */
+function slotVars(pkg) {
+  const run = /** @type {Record<string, any> | undefined} */ (pkg.config.run);
+  const build = run?.build && typeof run.build === 'object' && !Array.isArray(run.build) ? run.build : undefined;
+  return { ...pkg.config.vars, ...run?.vars, ...build?.vars };
 }
