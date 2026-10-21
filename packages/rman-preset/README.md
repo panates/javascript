@@ -87,6 +87,18 @@ commands individually for exactly that reason.
   files `tsc` does not emit from `src` (`vars.assets` - json, xml and yaml by default), and writes a
   consumer-shaped `package.json` there - see below.
 - **`check`, `lint`, `lint:fix`** as repository-wide scripts, so no package declares any of its own.
+- **`rman test`** runs the `test` script of the package you stand in - the repository's own at the
+  root, where the suite is one mocha run - instead of fanning out like `rman run test`. The
+  packages' own `run.test.before` / `.after` still run around it: every package's at the root, its
+  own in a package, `skip` / `run.test.skip` / `run.test.if` deciding as for `run`. The `before`s run
+  at once, and a failing one stops the run before the suite starts.
+
+  ```yaml
+  "[*]":
+    run:
+      test:
+        before: npx spm verify
+  ```
 - **`clean`** removes `build`, `*.tsbuildinfo` and that package's own coverage directory. The
   incremental cache goes with the output deliberately: left behind, `tsc -b` decides everything is
   up to date and emits nothing.
