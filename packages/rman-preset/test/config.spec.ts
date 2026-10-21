@@ -821,6 +821,69 @@ describe('@panates/rman-preset: the config a repository inherits', () => {
    * contribution is made: a command missing from here never reaches yargs at all. The last case
    * runs the CLI as well, for the one thing the config cannot show - that yargs took them.
    */
+  /**
+   * **`rman test` runs the packages' `run.test` hooks around the one root script** - measured missing
+   * on `abisena/syncbridge-iomt`, where `'[*]' run.test.before: npx spm verify` ran under `rman run
+   * test` and never under `rman test`.
+   */
+  describe("rman test and the packages' run.test hooks", () => {
+    /** A root whose `test` script and every hook append one line to `log`, so order is visible. */
+    function hooked(extra = '') {
+      const dir = fixtureDir({
+        packages: ['pkg-b'],
+        rmanrc: [
+          `extends: '@panates/rman-preset'`,
+          `'[*]':`,
+          `  run:`,
+          `    test:`,
+          `      before: 'echo before-\${{ pkg.name }} >> ../../log'`,
+          `      after: 'echo after-\${{ pkg.name }} >> ../../log'`,
+          extra,
+          ``,
+        ].join('\n'),
+        files: {
+          'package.json': JSON.stringify({
+            name: 'root',
+            private: true,
+            workspaces: ['packages/*'],
+            scripts: { test: 'echo script >> log' },
+          }),
+        },
+      });
+      const log = () => fs.readFileSync(path.join(dir, 'log'), 'utf-8').trim().split('\n');
+      return { dir, log };
+    }
+
+    it("runs every package's before ahead of the root script, and their after once it passed", async () => {
+      const { dir, log } = hooked();
+      await runRman(dir, 'test');
+      const lines = log();
+      expect(lines.slice(0, 2).sort()).toEqual(['before-pkg-a', 'before-pkg-b']);
+      expect(lines[2]).toBe('script');
+      expect(lines.slice(3).sort()).toEqual(['after-pkg-a', 'after-pkg-b']);
+    });
+
+    it('leaves out a package whose run.test.skip says so', async () => {
+      const { dir, log } = hooked(`'[pkg-b]':\n  run:\n    test:\n      skip: true`);
+      await runRman(dir, 'test');
+      expect(log().sort()).toEqual(['after-pkg-a', 'before-pkg-a', 'script']);
+    });
+
+    /** A failing before stops the run before the suite starts - the reason names the package. */
+    it('fails before the script runs when a before fails, naming the package', async () => {
+      const { dir } = hooked(`'[pkg-b]':\n  run:\n    test:\n      before: 'echo broken && exit 1'`);
+      const failure = await runRman(dir, 'test').then(
+        () => undefined,
+        (e: { stderr: string }) => e,
+      );
+      expect(failure?.stderr).toContain('run.test.before failed for 1 package(s)');
+      expect(failure?.stderr).toContain('pkg-b');
+      expect(fs.existsSync(path.join(dir, 'log')) && fs.readFileSync(path.join(dir, 'log'), 'utf-8')).not.toContain(
+        'script',
+      );
+    });
+  });
+
   describe('commands', () => {
     it('contributes check, format and lint, with no .rman directory needed', async () => {
       const repo = await repositoryFor();

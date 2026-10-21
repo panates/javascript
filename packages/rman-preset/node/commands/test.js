@@ -1,5 +1,6 @@
+import os from 'node:os';
 import path from 'node:path';
-import { runBin } from 'rman';
+import { filterPackages, runBin, RunService } from 'rman';
 
 const COMMAND = 'test [args..]';
 
@@ -57,7 +58,15 @@ const positionals = {
  *
  * **A package with no such script is an error, not a quiet success.** That is the rule rman applies
  * to an empty `run`, and for the same reason: a test command that passes having tested nothing is
- * the outcome worth ruling out. */
+ * the outcome worth ruling out.
+ *
+ * **The packages' own `run.<script>.before` / `.after` still run, around the one script.** Shadowing
+ * `run test` dropped them: measured on `abisena/syncbridge-iomt`, a `'[*]' run.test.before: npx spm
+ * verify` ran under `rman run test` and never under `rman test`, with nothing saying so - and
+ * `syncbridge-io/public-modules` documents the same hook as running "before the tests". At the root
+ * every package's hooks apply (the whole suite tests all of them), in a package its own; `skip`,
+ * `run.<script>.skip` and `run.<script>.if` decide as they do for `run`. The `before`s run at once,
+ * since each is that package's alone, and a failing one stops the run before the script starts. */
 export default (app) => {
   const repository = app.repository;
   return {
@@ -88,12 +97,85 @@ export default (app) => {
         );
       }
 
+      const hooked = await hookedPackages(repository, pkg, script);
+      await runHooks(hooked, script, 'before');
+
       const passThrough = args.args?.length ? ['--', ...args.args] : [];
       await runBin('npm', ['run', script, ...passThrough], {
         cwd: pkg.dirname,
         app: repository.app,
         logLevel: args.logLevel,
       });
+
+      await runHooks(hooked, script, 'after');
     },
   };
 };
+
+/**
+ * The packages whose `run.<script>` hooks apply to this run: every package at the root - the root
+ * itself first - or the one being tested, minus those `skip`, `run.<script>.skip` or
+ * `run.<script>.if` leave out.
+ *
+ * @param {import('rman').Repository} repository
+ * @param {import('rman').Package} pkg
+ * @param {string} script
+ * @returns {Promise<import('rman').Package[]>}
+ */
+async function hookedPackages(repository, pkg, script) {
+  const candidates = pkg.isRoot ? [repository.rootPackage, ...filterPackages(repository.packages, {})] : [pkg];
+  const statusCache = new Map();
+  const result = [];
+  for (const p of candidates) {
+    const cfg = RunService.getConfig(p, script);
+    if (cfg.skip === true) continue;
+    if (cfg.if !== undefined) {
+      const passes =
+        typeof cfg.if === 'function'
+          ? await cfg.if(RunService.createStepContext(p, p.dirname, undefined, undefined, undefined, ['run', script]))
+          : await evaluate(repository, p, cfg.if, statusCache);
+      if (!passes) continue;
+    }
+    result.push(p);
+  }
+  return result;
+}
+
+/** @returns {Promise<boolean>} */
+async function evaluate(repository, pkg, raw, statusCache) {
+  const node = RunService.parseIfExpr(raw);
+  return node ? RunService.evaluateIf(repository, pkg, node, statusCache) : true;
+}
+
+/**
+ * Runs `slot` of `run.<script>` for each of `packages` that declares one - several at once, as many
+ * as the machine has cores - and throws naming every package whose step failed.
+ *
+ * @param {import('rman').Package[]} packages
+ * @param {string} script
+ * @param {'before' | 'after'} slot
+ */
+async function runHooks(packages, script, slot) {
+  const jobs = packages
+    .map((p) => ({
+      pkg: p,
+      steps: RunService.normalizeScriptValue(RunService.getConfig(p, script)[slot], `run.${script}.${slot}`),
+    }))
+    .filter((j) => j.steps.length);
+  const failures = [];
+  let next = 0;
+  const worker = async () => {
+    while (next < jobs.length) {
+      const { pkg, steps } = jobs[next++];
+      try {
+        await RunService.runHook(pkg, steps, ['run', script]);
+      } catch (e) {
+        failures.push(`  ${pkg.name}: ${e instanceof Error ? e.message : String(e)}`);
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(jobs.length, os.availableParallelism()) }, worker));
+  if (failures.length) {
+    throw new Error(`run.${script}.${slot} failed for ${failures.length} package(s):\n${failures.join('\n')}`);
+  }
+}
