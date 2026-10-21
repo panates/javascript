@@ -94,11 +94,12 @@ commands individually for exactly that reason.
   at once, and a failing one stops the run before the suite starts.
 
   ```yaml
-  "[*]":
+  '[*]':
     run:
       test:
         before: npx spm verify
   ```
+
 - **`clean`** removes `build`, `*.tsbuildinfo` and that package's own coverage directory. The
   incremental cache goes with the output deliberately: left behind, `tsc -b` decides everything is
   up to date and emits nothing.
