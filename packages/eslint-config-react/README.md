@@ -4,11 +4,11 @@ React rules for Panates' ESLint config, on top of
 [`@panates/eslint-config-ts`](https://github.com/panates/javascript/tree/main/packages/eslint-config-ts).
 For TypeScript React projects, ESLint 10 and flat config.
 
-| Config | For | Brings |
-| --- | --- | --- |
-| `configs.react` | any React project in a browser | [`@eslint-react`](https://eslint-react.xyz) for components and JSX, React's own [`react-hooks`](https://react.dev/reference/eslint-plugin-react-hooks) for hooks and the React Compiler |
-| `@panates/eslint-config-react/next` | Next.js | the above, plus [`@next/eslint-plugin-next`](https://nextjs.org/docs/app/api-reference/config/eslint) at `core-web-vitals` |
-| `@panates/eslint-config-react/vite` | Vite | the above, plus [`react-refresh`](https://github.com/ArnaudBarre/eslint-plugin-react-refresh) for hot reload |
+| Config                              | For                            | Brings                                                                                                                                                                                  |
+| ----------------------------------- | ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `configs.react`                     | any React project in a browser | [`@eslint-react`](https://eslint-react.xyz) for components and JSX, React's own [`react-hooks`](https://react.dev/reference/eslint-plugin-react-hooks) for hooks and the React Compiler |
+| `@panates/eslint-config-react/next` | Next.js                        | the above, plus [`@next/eslint-plugin-next`](https://nextjs.org/docs/app/api-reference/config/eslint) at `core-web-vitals`                                                              |
+| `@panates/eslint-config-react/vite` | Vite                           | the above, plus [`react-refresh`](https://github.com/ArnaudBarre/eslint-plugin-react-refresh) for hot reload                                                                            |
 
 ## Install
 
@@ -48,6 +48,18 @@ your own goes in an `ignores` block of your own.
 
 `configPatches.react` is the React layer alone, to add on top of a config of your own.
 
+**A library** - a package other projects install, with `react` as a peer - names the oldest React it
+supports, so rules for an idiom newer than that stay quiet:
+
+```js
+// eslint.config.mjs - a library whose peer range is react >=18
+export default [...panatesReact.configs.react, { settings: { 'react-x': { version: '18.0.0' } } }];
+```
+
+`@eslint-react` reads its React version from there; left out, it detects the React installed - a
+library's own dev copy, usually the newest - and asks for React 19's `ref` prop in place of
+`forwardRef`, or `use()` in place of `useContext`, which its React 18 consumers do not have.
+
 ## Notes
 
 - **`@eslint-react`, not `eslint-plugin-react`**: the latter, and `eslint-plugin-jsx-a11y`, support
@@ -55,6 +67,11 @@ your own goes in an `ignores` block of your own.
 - **Hooks are checked once.** Rules both plugins have (`rules-of-hooks`, `exhaustive-deps`, the
   React Compiler ones) are left to `react-hooks`.
 - **Relative imports need no extension** (`import-x/extensions` is off) - a bundler resolves them.
+- **An index is a valid key** (`@eslint-react/no-array-index-key` is off): it is the right one for a
+  list of positions - one box per OTP digit, the parts of a formatted date - and the rule cannot
+  tell such a list from one that reorders. Key a list that reorders by something stable.
+- **The Next entry takes `@next/eslint-plugin-next` 15 or 16.** 15 ships its configs in the
+  eslintrc shape and the flat ones under `flatConfig`; the entry reads whichever is there.
 - **A prettier plugin named in a package's prettier config is resolved from where ESLint runs.**
   Formatting is checked through `eslint-plugin-prettier`, and prettier looks a plugin name such as
   `'prettier-plugin-tailwindcss'` up from the working directory - so `eslint` run at a monorepo's

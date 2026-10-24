@@ -3,9 +3,10 @@ import os from 'node:os';
 import path from 'node:path';
 import type { Linter } from 'eslint';
 import { ESLint } from 'eslint';
+import nextPlugin15 from '@next/eslint-plugin-next-15';
 import { expect } from 'expect';
 import panatesReact from '../index.js';
-import nextConfig from '../configs/next.js';
+import nextConfig, { coreWebVitals } from '../configs/next.js';
 import viteConfig from '../configs/vite.js';
 
 /**
@@ -110,6 +111,37 @@ export function Page() {
       expect(ids).toContain('@eslint-react/no-missing-key');
     });
 
+    /** A positional list - one box per OTP digit - has nothing but its index to key by. */
+    it('takes an index as a key', async () => {
+      const ids = await ruleIds(
+        react,
+        'src/Boxes.tsx',
+        `export function Boxes({ digits }: { digits: string[] }) {
+  return <div>{digits.map((d, i) => <input key={i} value={d} readOnly />)}</div>;
+}
+`,
+      );
+      expect(ids).not.toContain('@eslint-react/no-array-index-key');
+    });
+
+    const forwardRef = `import { forwardRef } from 'react';
+
+export const Box = forwardRef<HTMLDivElement>(function Box(_props, ref) {
+  return <div ref={ref} />;
+});
+`;
+
+    /**
+     * A library supporting React 18 cannot take React 19's idioms: \`ref\` as an ordinary prop does not
+     * exist there. \`@eslint-react\` gates those rules on \`settings['react-x'].version\`, which is
+     * what the README tells a library to set.
+     */
+    it("leaves React 19's idioms alone when the settings name an older React", async () => {
+      expect(await ruleIds(react, 'src/Box.tsx', forwardRef)).toContain('@eslint-react/no-forward-ref');
+      const react18 = [...react, { settings: { 'react-x': { version: '18.0.0' } } }];
+      expect(await ruleIds(react18, 'src/Box.tsx', forwardRef)).not.toContain('@eslint-react/no-forward-ref');
+    });
+
     it('applies to a hook in a plain .ts file too', async () => {
       const ids = await ruleIds(
         react,
@@ -141,6 +173,23 @@ export function useThing(on: boolean) {
 
     it('keeps the React rules underneath', async () => {
       expect(await ruleIds(nextConfig, 'app/Counter.tsx', clean)).toEqual([]);
+    });
+
+    /**
+     * The peer range takes in 15, whose \`configs\` are eslintrc-shaped - \`plugins\` an array of
+     * names, which flat config rejects - with the flat ones under \`flatConfig\` instead.
+     */
+    it("takes the 15.x plugin's rules too", async () => {
+      const next15 = [...panatesReact.configs.react, { ...coreWebVitals(nextPlugin15), name: 'next-15' }];
+      const ids = await ruleIds(
+        next15,
+        'app/page.tsx',
+        `export default function Page() {
+  return <img src="/logo.png" alt="logo" />;
+}
+`,
+      );
+      expect(ids).toContain('@next/next/no-img-element');
     });
 
     it("leaves Next's build output alone", async () => {
