@@ -12,8 +12,13 @@
  * 3.6-4.0s against 2.0-2.3s for one dpdm process per package, because one process is one thread.
  * This keeps the processes and swaps what runs in them.
  *
- * **dpdm resolved from the package's directory**, as `runBin('dpdm')` found the binary through
- * `node_modules/.bin` from there - the repository's own copy, not one beside this preset.
+ * **dpdm resolved from beside this preset first, then from the package's directory.** It is this
+ * preset's peer dependency, and a peer is installed where the preset can reach it: npm hoists it to
+ * the repository's root, which the package's directory reaches too, but pnpm links it into the
+ * preset's own neighbourhood alone - from the package's directory there is no dpdm unless the
+ * repository also lists it itself (measured on panates/peacox-ui, pnpm 11). Either way it is the
+ * repository's copy, which is what resolving from the package's directory was for: a peer
+ * resolves to the version the repository installs, not one of this preset's own choosing.
  *
  * **The options are the CLI's `-T --skip-dynamic-imports circular`**: `transform` drops type-only
  * imports, and dynamic imports are parsed but left out of the cycle search, since a lazy `import()`
@@ -25,9 +30,15 @@ const entry = process.argv[2];
 const cwd = process.cwd();
 
 let dpdm;
-try {
-  dpdm = createRequire(path.join(cwd, 'package.json'))('dpdm');
-} catch {
+for (const from of [import.meta.url, path.join(cwd, 'package.json')]) {
+  try {
+    dpdm = createRequire(from)('dpdm');
+    break;
+  } catch {
+    /* not reachable from here - try the next place */
+  }
+}
+if (!dpdm) {
   console.error('"dpdm" was not found - is it installed in this repository?');
   process.exit(2);
 }
