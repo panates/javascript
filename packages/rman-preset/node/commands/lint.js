@@ -28,14 +28,34 @@ const config = {
     type: 'boolean',
   },
   maxWarnings: {
-    target: 'cli',
+    target: 'both',
     cliName: 'max-warnings',
     alias: 'w',
     describe:
-      'Warnings tolerated before the command fails. Default 0 - a warning nobody ever has to ' +
-      'act on is a warning that accumulates. -1 reports them without ever failing.',
+      'Warnings tolerated before the command fails. Default .rmanrc "lint.maxWarnings", else 0 - a ' +
+      'warning nobody ever has to act on is a warning that accumulates. -1 reports them without ever failing.',
     type: 'number',
-    default: 0,
+  },
+  /* **Hiding warnings is not ignoring them**, and eslint is the one that says so - measured on eslint
+   * 10.13 with one `no-console: warn` hit: `--quiet` alone exits 0, `--quiet --max-warnings=0` exits 1
+   * with `ESLint found too many warnings (maximum: 0)` and lists nothing. So under this command's
+   * default of 0 a quiet run can fail on a warning it does not show. That is left as eslint has it -
+   * quietly raising the limit would make `-q` mean "and let warnings through" - and the help says how
+   * to get that instead. */
+  quiet: {
+    target: 'cli',
+    alias: 'q',
+    describe:
+      'Report errors only. Warnings still count toward --max-warnings, so with the default 0 one fails ' +
+      'the run unlisted - add -w -1 to ignore them as well',
+    type: 'boolean',
+  },
+  cache: {
+    target: 'both',
+    describe:
+      "Lint only the files that changed since the last run, keeping eslint's cache under " +
+      'node_modules/.cache/eslint. Default .rmanrc "lint.cache", else off.',
+    type: 'boolean',
   },
 };
 
@@ -83,6 +103,8 @@ export default (app) => {
     command: COMMAND,
     platform: 'node',
     describe: 'Lints the repository with eslint, or the package it is run inside (--fix to apply the fixable ones)',
+    /** Everything after `--` goes to eslint untouched - see the handler. */
+    parserConfiguration: { 'populate--': true },
     config,
     positionals,
     examples: [
@@ -92,6 +114,8 @@ export default (app) => {
       { command: '$0 lint packages/core', description: '# Just one directory' },
       { command: '$0 lint --from-root', description: '# The whole repository, from inside a package' },
       { command: '$0 lint --parallel false', description: '# One thread, for a loaded machine' },
+      { command: '$0 lint --cache', description: '# Only what changed since the last run' },
+      { command: "$0 lint -- --rule 'no-console: off'", description: '# Anything else goes to eslint after --' },
     ],
     /** @param {import('rman').ArgsOf<typeof config, typeof COMMAND>} args */
     handler: async (args) => {
@@ -99,11 +123,22 @@ export default (app) => {
       const paths = args.paths?.length ? args.paths : [scope ? path.relative(repository.dirname, scope.dirname) : '.'];
       /** Nothing is passed unless asked for - see `eslintConcurrency`, where one repository in
        *  three is broken by the flag at any value. */
-      const concurrency = eslintConcurrency(args.parallel ?? repository.rootPackage.config.lint?.concurrency);
+      const own = repository.rootPackage.config.lint;
+      const concurrency = eslintConcurrency(args.parallel ?? own?.concurrency);
+      /** Read off the root, like `concurrency`: eslint runs once for the whole command, so there is one
+       *  answer per run. A flag wins, and that needs the yargs option to carry no `default` - one there
+       *  would arrive on every run and the config key could never take effect. */
+      const maxWarnings = args.maxWarnings ?? own?.maxWarnings ?? 0;
+      const cache = args.cache ?? own?.cache ?? false;
       const flags = [
-        `--max-warnings=${args.maxWarnings}`,
+        `--max-warnings=${maxWarnings}`,
         ...(args.fix ? ['--fix'] : []),
+        ...(args.quiet ? ['--quiet'] : []),
+        ...(cache ? ['--cache', `--cache-location=${CACHE_LOCATION}`] : []),
         ...(concurrency === undefined ? [] : [`--concurrency=${concurrency}`]),
+        /** Last, so a flag written there has the final word over ours - eslint takes the last of a
+         *  repeated option. */
+        ...(args['--'] ?? []).map(String),
       ];
       await runBin('eslint', [...paths, ...flags], {
         cwd: repository.dirname,
@@ -113,6 +148,19 @@ export default (app) => {
     },
   };
 };
+
+/**
+ * Where `--cache` keeps eslint's cache, relative to the repository root eslint runs from.
+ */
+/* **Under `node_modules/.cache`, not eslint's default `.eslintcache`** at the root: that is a file
+ * every repository would then have to gitignore, while `node_modules` is ignored everywhere already
+ * and `rman ci` wipes it - so a reinstall starts from a clean cache, which is the moment a stale one
+ * would mislead. The trailing slash makes it a directory, which eslint keys per cwd.
+ *
+ * **Off by default, and not only for speed's sake.** eslint's cache keys a file on its own content
+ * and the config, so a type-aware rule's verdict on an *unchanged* file is served from the cache
+ * even when a type it depends on changed elsewhere. Fine for the edit loop; CI should lint cold. */
+const CACHE_LOCATION = 'node_modules/.cache/eslint/';
 
 /**
  * rman's `--parallel` as eslint's `--concurrency`, or `undefined` to pass nothing at all.

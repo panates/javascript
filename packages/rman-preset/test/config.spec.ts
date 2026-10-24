@@ -988,6 +988,50 @@ describe('@panates/rman-preset: the config a repository inherits', () => {
     });
 
     /**
+     * **What eslint is handed, flag by flag** - the limit, `--quiet`, `--cache` and whatever follows
+     * `--`. A stand-in `eslint` records its whole argv, one argument per line, so an argument holding
+     * a space reads as one.
+     *
+     * The case to watch is the config key losing to a flag nobody typed: `--max-warnings` carried a
+     * yargs `default: 0`, which arrives on every run, so `lint.maxWarnings` could never take effect.
+     * The second assertion is the one that fails with that default put back.
+     */
+    it('passes the warning limit, --quiet, --cache and everything after -- to eslint', async () => {
+      const argvOf = async (rmanrc: string, ...args: string[]) => {
+        const repo = await repositoryFor({ rmanrc: `extends: '@panates/rman-preset'\n${rmanrc}` });
+        const log = path.join(repo.dirname, 'eslint.log');
+        const bin = path.join(repo.dirname, 'node_modules', '.bin');
+        fs.mkdirSync(bin, { recursive: true });
+        fs.writeFileSync(
+          path.join(bin, 'eslint'),
+          `#!/bin/sh\nfor a in "$@"; do echo "$a" >> ${JSON.stringify(log)}; done\n`,
+          { mode: 0o755 },
+        );
+        await runRman(repo.dirname, 'lint', ...args);
+        return fs.readFileSync(log, 'utf-8').trim().split('\n');
+      };
+      const CACHE = ['--cache', '--cache-location=node_modules/.cache/eslint/'];
+
+      expect(await argvOf('')).toEqual(['.', '--max-warnings=0']);
+      expect(await argvOf('lint: { maxWarnings: 5, cache: true }')).toEqual(['.', '--max-warnings=5', ...CACHE]);
+      /** A flag beats its key, `--no-cache` included - which is why `cache` has no default either. */
+      expect(await argvOf('lint: { maxWarnings: 5, cache: true }', '-w', '2', '--no-cache', '-q')).toEqual([
+        '.',
+        '--max-warnings=2',
+        '--quiet',
+      ]);
+      /** After `--`, nothing is a path or one of ours: it reaches eslint last and as written, so a
+       *  repeated `--max-warnings` there has the final word. */
+      expect(await argvOf('', 'packages', '--', '--rule', 'no-console: off', '--max-warnings=9')).toEqual([
+        'packages',
+        '--max-warnings=0',
+        '--rule',
+        'no-console: off',
+        '--max-warnings=9',
+      ]);
+    });
+
+    /**
      * **`check` fails on what npm would correct in a `package.json`** - npm's own normalization, read
      * without writing, so a release does not reach `npm warn publish errors corrected` in CI. A
      * package with no `src/index.ts` still has its manifest checked; only the dependency walk needs
