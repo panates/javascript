@@ -12,8 +12,15 @@ declare module 'rman' {
     interface CommandConfigs {
       /** `rman check` - threads for the dependency walk; `--parallel` overrides it per run. */
       check?: { concurrency?: number };
-      /** `rman lint` - eslint's own `--concurrency`; `--parallel` overrides it per run. */
-      lint?: { concurrency?: number };
+      /** `rman lint` - read off the repository root; each flag overrides its key per run. */
+      lint?: {
+        /** eslint's own `--concurrency`; `--parallel` overrides it. */
+        concurrency?: number;
+        /** Warnings tolerated before the command fails; `-1` never fails on them. Default `0`. */
+        maxWarnings?: number;
+        /** Lint only what changed since the last run, cached under `node_modules/.cache/eslint`. */
+        cache?: boolean;
+      };
     }
   }
 }

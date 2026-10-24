@@ -155,8 +155,27 @@ rman format packages/core      # just one directory
 rman lint                      # eslint --max-warnings=0
 rman lint --fix                # and apply what eslint can fix itself
 rman lint --max-warnings=5     # tolerate five (-1 never fails on warnings)
+rman lint --quiet              # errors only - warnings still count toward the limit
+rman lint --cache              # only what changed since the last run
 rman lint packages/core
+rman lint -- --rule 'no-console: off'   # anything after -- goes to eslint as written
 ```
+
+Two of those have a `.rmanrc` key as well, read off the repository root, and the flag wins when
+given:
+
+```yaml
+lint:
+  maxWarnings: 5 # default 0
+  cache: true # default off; --no-cache turns it off for one run
+```
+
+`--cache` keeps eslint's cache under `node_modules/.cache/eslint/`, so there is nothing to
+gitignore and `rman ci` starts it over. Leave it off in CI: eslint caches a file's result by its own
+content, so a type-aware rule is not re-run on an unchanged file whose types changed elsewhere.
+
+`--quiet` hides warnings without ignoring them. With the default limit of 0, a warning still fails
+the run even though it is not listed. Add `-w -1` to let warnings through as well.
 
 Commands rather than `run.format`/`run.lint` scripts, because **both tools already decide their own
 scope** from the root config. A per-package run passes `.` in each package's own directory, so it
