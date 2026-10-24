@@ -17,8 +17,11 @@ describe('check-worker', () => {
     for (const d of dirs) fs.rmSync(d, { recursive: true, force: true });
   });
 
-  /** A package with these sources, a nodenext tsconfig, and the workspace's dpdm. */
-  function pkg(files: Record<string, string>, options: { tsconfig?: boolean } = {}): string {
+  /**
+   * A package with these sources, a nodenext tsconfig, and the workspace's dpdm - unless `dpdm` is
+   * false, which leaves it where pnpm leaves a peer: beside the preset only.
+   */
+  function pkg(files: Record<string, string>, options: { tsconfig?: boolean; dpdm?: boolean } = {}): string {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rman-preset-check-'));
     dirs.push(dir);
     fs.writeFileSync(path.join(dir, 'package.json'), JSON.stringify({ name: 'pkg', type: 'module' }));
@@ -28,8 +31,10 @@ describe('check-worker', () => {
         JSON.stringify({ compilerOptions: { module: 'nodenext', moduleResolution: 'nodenext' }, include: ['src'] }),
       );
     }
-    fs.mkdirSync(path.join(dir, 'node_modules'));
-    fs.symlinkSync(DPDM, path.join(dir, 'node_modules', 'dpdm'));
+    if (options.dpdm !== false) {
+      fs.mkdirSync(path.join(dir, 'node_modules'));
+      fs.symlinkSync(DPDM, path.join(dir, 'node_modules', 'dpdm'));
+    }
     for (const [rel, content] of Object.entries(files)) {
       fs.mkdirSync(path.dirname(path.join(dir, rel)), { recursive: true });
       fs.writeFileSync(path.join(dir, rel), content);
@@ -82,6 +87,23 @@ describe('check-worker', () => {
   it('does not count a dynamic import as unresolved', () => {
     const dir = pkg({ 'src/index.ts': `export const load = () => import('not-installed-anywhere');\n` });
     expect(check(dir).unresolved).toEqual([]);
+  });
+
+  /**
+   * **pnpm's layout.** dpdm is this preset's peer, and pnpm links a peer into the preset's own
+   * neighbourhood rather than the repository's root - from the package's directory there is no dpdm
+   * to find unless the repository lists it itself. Measured on panates/peacox-ui with pnpm 11:
+   * "dpdm was not found", with dpdm installed as the preset's peer all along.
+   */
+  it('finds dpdm beside the preset when the package cannot reach it, as pnpm installs a peer', () => {
+    const dir = pkg(
+      {
+        'src/index.ts': `import { b } from './b.js';\nexport const a = () => b;\n`,
+        'src/b.ts': `import { a } from './index.js';\nexport const b = () => a;\n`,
+      },
+      { dpdm: false },
+    );
+    expect(check(dir)).toMatchObject({ files: 2, cycles: [['src/index.ts', 'src/b.ts']], unresolved: [] });
   });
 
   it('answers clean for a package with neither', () => {
