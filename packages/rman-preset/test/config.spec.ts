@@ -901,10 +901,10 @@ describe('@panates/rman-preset: the config a repository inherits', () => {
     });
 
     /**
-     * **rman's own `ci` and `clean` survive ours**, because `commands` appends across layers -
-     * including the presets rman lays under every repository root, which is where those two come
-     * from in 2.x (they were `rman-node`'s while that was a separate package). Seven entries, not
-     * five.
+     * **rman's own `ci`, `clean` and `install` survive ours**, because `commands` appends across
+     * layers - including the presets rman lays under every repository root, which is where those
+     * come from in 2.x (`ci` and `clean` were `rman-node`'s while that was a separate package;
+     * `install` arrived in rman 2.36). Eight entries, not five.
      *
      * Worth its own case because the count is the part that looks wrong. Replacement was the
      * silent failure the append rule exists to prevent: a config adding a command of its own would
@@ -913,7 +913,16 @@ describe('@panates/rman-preset: the config a repository inherits', () => {
      */
     it('appends to the commands it inherits rather than replacing them', async () => {
       const repo = await repositoryFor();
-      expect(declaredCommandNames(repo)).toEqual(['ci', 'clean', 'check', 'compile', 'format', 'lint', 'test']);
+      expect(declaredCommandNames(repo)).toEqual([
+        'ci',
+        'clean',
+        'install',
+        'check',
+        'compile',
+        'format',
+        'lint',
+        'test',
+      ]);
     });
 
     /**

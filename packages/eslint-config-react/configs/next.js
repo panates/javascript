@@ -2,6 +2,20 @@ import nextPlugin from '@next/eslint-plugin-next';
 import reactConfig from './react.js';
 
 /**
+ * Next's `core-web-vitals` config in flat form, from either plugin line the peer range takes in.
+ *
+ * 16 ships `configs` flat and has no `flatConfig`; 15 ships `configs` in the eslintrc shape -
+ * `plugins` an array of names, which flat config rejects outright - and the flat ones under
+ * `flatConfig`. Measured on 16.4.2 and 15.5.28. Reading `configs` alone made this entry work on 16
+ * only, while its peer range said `>=15`.
+ *
+ * @param {typeof nextPlugin} plugin
+ */
+export function coreWebVitals(plugin) {
+  return plugin.flatConfig?.coreWebVitals ?? plugin.configs['core-web-vitals'];
+}
+
+/**
  * A Next.js application: the React config plus Next's own rules, at the stricter
  * `core-web-vitals` level `create-next-app` sets up (it includes `recommended`).
  *
@@ -17,7 +31,7 @@ export default [
   },
   ...reactConfig,
   {
-    ...nextPlugin.configs['core-web-vitals'],
+    ...coreWebVitals(nextPlugin),
     name: 'panates/next',
   },
 ];

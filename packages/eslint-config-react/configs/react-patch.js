@@ -34,6 +34,12 @@ const duplicatesOff = Object.fromEntries(
  * `import-x/extensions` is off: the base config asks for `.js` on a relative import, which is Node's
  * ESM rule, while a React project is built by a bundler (Next, Vite) and imports without one.
  * Measured on `abisena-tr`: 272 reports, every one an ordinary `./component` import.
+ *
+ * `@eslint-react/no-array-index-key` is off: an index is the right key for a list whose items are
+ * their position - one input box per OTP digit, the parts of a formatted date, a consumer's array of
+ * actions with no identity of its own - and the rule cannot tell such a list from one that reorders.
+ * Measured on `panates/peacox-ui`: 12 reports, each a positional list or a list with no other key.
+ * Keying a list that does reorder by something stable stays the author's call.
  */
 export default [
   {
@@ -52,6 +58,7 @@ export default [
     rules: {
       ...duplicatesOff,
       'import-x/extensions': 'off',
+      '@eslint-react/no-array-index-key': 'off',
     },
   },
 ];

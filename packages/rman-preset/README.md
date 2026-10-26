@@ -19,8 +19,11 @@ extends: '@panates/rman-preset'
 ```
 
 That is the whole configuration for a repository that follows the layout below. **Requires rman
-2.0 or newer** - the selector semantics this config is written against (`"[/]"` for the root,
-`"[*]"` for the packages below) and the `publish.npm.*` block both date from it.
+2.39 or newer**, which the peer range enforces. The selector semantics this config is written
+against (`"[/]"` for the root, `"[*]"` for the packages below) and the `publish.npm.*` block date
+from 2.0; 2.39 is the first rman that finds a pnpm repository's packages from
+`pnpm-workspace.yaml` - an older one, given a repository that lists them only there, finds none, and
+`rman build` or `rman publish` then succeed having done nothing.
 
 No `$schema` line: rman shipped a JSON Schema through 1.0.x and it is gone, because a schema cannot
 describe keys a _plugin_ contributes. Autocomplete comes from the `RmanNodeConfig` type instead,
