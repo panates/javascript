@@ -284,6 +284,8 @@ function writeBuildManifest(pkg, buildDir) {
 
   if (json.publishConfig) {
     delete json.publishConfig.directory;
+    /* pnpm's switch for linking `directory` inside the workspace - nothing once `directory` is gone. */
+    delete json.publishConfig.linkDirectory;
     if (!Object.keys(json.publishConfig).length) delete json.publishConfig;
   }
 
