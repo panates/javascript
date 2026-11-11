@@ -156,6 +156,56 @@ export function useThing(on: boolean) {
       );
       expect(ids).toContain('react-hooks/rules-of-hooks');
     });
+
+    /**
+     * React 18 drops a boolean `inert` and React 19 an empty one (measured on react-dom 18.3.1 and
+     * 19.2.0), so the rule holds the attribute to the oldest React the settings name.
+     */
+    describe('panates-react/inert', () => {
+      const withReact = (version: string) => [...react, { settings: { 'react-x': { version } } }];
+      const inertCount = async (config: Linter.Config[], attr: string) =>
+        (
+          await ruleIds(
+            config,
+            'src/Panel.tsx',
+            `export function Panel({ open }: { open: boolean }) {
+  return <div ${attr}>x</div>;
+}
+`,
+          )
+        ).filter((id) => id === 'panates-react/inert').length;
+
+      it('reports an expression and the bare shorthand below React 19', async () => {
+        const react18 = withReact('18.0.0');
+        expect(await inertCount(react18, 'inert={!open}')).toBe(1);
+        expect(await inertCount(react18, 'inert={true}')).toBe(1);
+        expect(await inertCount(react18, 'inert')).toBe(1);
+      });
+
+      it('leaves a spread and an empty string alone below React 19', async () => {
+        const react18 = withReact('18.0.0');
+        expect(await inertCount(react18, "{...(open ? {} : { inert: '' })}")).toBe(0);
+        expect(await inertCount(react18, 'inert=""')).toBe(0);
+      });
+
+      it('reports an empty string from React 19, however it is written', async () => {
+        const react19 = withReact('19.0.0');
+        expect(await inertCount(react19, 'inert=""')).toBe(1);
+        expect(await inertCount(react19, "inert={''}")).toBe(1);
+        expect(await inertCount(react19, 'inert={``}')).toBe(1);
+      });
+
+      it('leaves a boolean alone from React 19', async () => {
+        const react19 = withReact('19.0.0');
+        expect(await inertCount(react19, 'inert={!open}')).toBe(0);
+        expect(await inertCount(react19, 'inert')).toBe(0);
+      });
+
+      it('reports nothing without a React version in the settings', async () => {
+        expect(await inertCount(react, 'inert={!open}')).toBe(0);
+        expect(await inertCount(react, 'inert=""')).toBe(0);
+      });
+    });
   });
 
   describe('next', () => {
