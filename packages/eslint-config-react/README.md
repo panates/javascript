@@ -60,6 +60,29 @@ export default [...panatesReact.configs.react, { settings: { 'react-x': { versio
 library's own dev copy, usually the newest - and asks for React 19's `ref` prop in place of
 `forwardRef`, or `use()` in place of `useContext`, which its React 18 consumers do not have.
 
+The same setting drives `panates-react/inert`, this package's own rule. React 18 and 19 render
+`inert` in opposite ways: 18 drops a boolean (`inert={true}`) and needs the empty string, 19 drops
+the empty string (`inert=""`) and needs a boolean. Below 19 the rule reports `inert={...}` and the
+bare `inert`; from 19 it reports `inert=""`. A library on `react >=18` writes the attribute through
+a spread chosen by `React.version`:
+
+```tsx
+import React from 'react';
+
+const REACT_18 = Number(React.version.split('.')[0]) < 19;
+
+/** `inert` the way the running React renders it - nothing when `on` is false. React 19's types
+ *  take a boolean only, so the string 18 needs is cast. */
+export function inertProps(on: boolean): { inert?: boolean } {
+  if (!on) return {};
+  return REACT_18 ? ({ inert: '' } as unknown as { inert?: boolean }) : { inert: true };
+}
+
+<div {...inertProps(!open)}>...</div>;
+```
+
+Without a version in the settings the rule reports nothing.
+
 ## Notes
 
 - **`@eslint-react`, not `eslint-plugin-react`**: the latter, and `eslint-plugin-jsx-a11y`, support

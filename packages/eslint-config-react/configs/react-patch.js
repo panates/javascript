@@ -1,5 +1,6 @@
 import eslintReact from '@eslint-react/eslint-plugin';
 import reactHooks from 'eslint-plugin-react-hooks';
+import inert from '../rules/inert.js';
 
 /** Every file a component or a hook can live in - a hook in a plain `.ts` included. */
 const FILES = ['**/*.{ts,tsx,mts,cts,jsx}'];
@@ -40,6 +41,10 @@ const duplicatesOff = Object.fromEntries(
  * actions with no identity of its own - and the rule cannot tell such a list from one that reorders.
  * Measured on `panates/peacox-ui`: 12 reports, each a positional list or a list with no other key.
  * Keying a list that does reorder by something stable stays the author's call.
+ *
+ * `panates-react/inert` is this package's own rule: React 18 and 19 render `inert` in opposite ways,
+ * so it holds the attribute to the oldest React in `settings['react-x'].version` - see
+ * `rules/inert.js`. Without the setting it reports nothing.
  */
 export default [
   {
@@ -55,8 +60,10 @@ export default [
   {
     name: 'panates/react-patch',
     files: FILES,
+    plugins: { 'panates-react': { rules: { inert } } },
     rules: {
       ...duplicatesOff,
+      'panates-react/inert': 'error',
       'import-x/extensions': 'off',
       '@eslint-react/no-array-index-key': 'off',
     },
